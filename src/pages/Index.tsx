@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfWeek } from "date-fns";
-import { Plus, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-// Types
+// Types used on the client
 export type Habit = {
   id: string;
   name: string;
@@ -19,42 +21,21 @@ export type Habit = {
 };
 
 export type HabitEntry = {
+  id: string;
   habitId: string;
   date: string; // YYYY-MM-DD
   done: boolean;
 };
 
-// Local storage helpers
-const load = <T,>(key: string, fallback: T): T => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    return JSON.parse(raw) as T;
-  } catch {
-    return fallback;
-  }
-};
-
-const save = (key: string, value: unknown) => {
-  localStorage.setItem(key, JSON.stringify(value));
-};
-
 // Add Habit Dialog
-function AddHabit({ onAdd }: { onAdd: (habit: Habit) => void }) {
+function AddHabit({ onAdd }: { onAdd: (name: string, goal?: number) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [goal, setGoal] = useState<number | "">("");
 
-  const submit = () => {
+  const submit = async () => {
     if (!name.trim()) return;
-    const habit: Habit = {
-      id: crypto.randomUUID(),
-      name: name.trim(),
-      goalPerWeek: goal === "" ? undefined : Number(goal),
-      createdAt: new Date().toISOString(),
-      active: true,
-    };
-    onAdd(habit);
+    await onAdd(name.trim(), goal === "" ? undefined : Number(goal));
     setName("");
     setGoal("");
     setOpen(false);
@@ -114,7 +95,7 @@ function HabitTable({
   habits: Habit[];
   entries: HabitEntry[];
   weekStart: Date;
-  onToggle: (habitId: string, dateISO: string) => void;
+  onToggle: (habitId: string, dateISO: string) => Promise<void>;
 }) {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
@@ -186,27 +167,143 @@ function HabitTable({
 
 export default function Index() {
   const { toast } = useToast();
-  const [habits, setHabits] = useState<Habit[]>(() => load<Habit[]>("habits", []));
-  const [entries, setEntries] = useState<HabitEntry[]>(() => load<HabitEntry[]>("entries", []));
-  const [weekOffset, setWeekOffset] = useState(0);
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  useEffect(() => save("habits", habits), [habits]);
-  useEffect(() => save("entries", entries), [entries]);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [entries, setEntries] = useState<HabitEntry[]>([]);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   const today = new Date();
   const weekStart = useMemo(() => startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 }), [today, weekOffset]);
 
-  const addHabit = (h: Habit) => {
-    setHabits((prev) => [h, ...prev]);
-    toast({ title: "Habit added", description: `${h.name} created.` });
+  useEffect(() => {
+    document.title = "AWS-Style Habit Tracker";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", "Track daily habits securely with Supabase-authenticated storage.");
+  }, []);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+      setLoading(false);
+      if (!uid) navigate("/auth", { replace: true });
+      if (uid) void refreshData(uid);
+    });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const uid = session?.user?.id ?? null;
+      setUserId(uid);
+      setLoading(false);
+      if (!uid) navigate("/auth", { replace: true });
+      if (uid) void refreshData(uid);
+    });
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
+
+  const refreshData = async (uid: string) => {
+    await Promise.all([fetchHabits(uid), fetchEntries(uid)]);
   };
 
-  const toggleEntry = (habitId: string, dateISO: string) => {
-    setEntries((prev) => {
-      const match = prev.find((e) => e.habitId === habitId && e.date === dateISO);
-      if (!match) return [...prev, { habitId, date: dateISO, done: true }];
-      return prev.map((e) => (e === match ? { ...e, done: !e.done } : e));
-    });
+  const fetchHabits = async (uid: string) => {
+    const { data, error } = await supabase
+      .from("habits")
+      .select("id, name, goal_per_week, active, created_at")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast({ title: "Failed to load habits", description: error.message, variant: "destructive" });
+      return;
+    }
+    const mapped: Habit[] = (data ?? []).map((h) => ({
+      id: h.id,
+      name: h.name,
+      goalPerWeek: h.goal_per_week ?? undefined,
+      createdAt: h.created_at as string,
+      active: h.active as boolean,
+    }));
+    setHabits(mapped);
+  };
+
+  const fetchEntries = async (uid: string) => {
+    const { data, error } = await supabase
+      .from("habit_entries")
+      .select("id, habit_id, date, done")
+      .eq("user_id", uid);
+    if (error) {
+      toast({ title: "Failed to load entries", description: error.message, variant: "destructive" });
+      return;
+    }
+    const mapped: HabitEntry[] = (data ?? []).map((e) => ({
+      id: e.id,
+      habitId: e.habit_id as string,
+      date: typeof e.date === "string" ? e.date : String(e.date),
+      done: e.done as boolean,
+    }));
+    setEntries(mapped);
+  };
+
+  const addHabit = async (name: string, goal?: number) => {
+    if (!userId) return;
+    const { data, error } = await supabase
+      .from("habits")
+      .insert([{ user_id: userId, name, goal_per_week: goal, active: true }])
+      .select()
+      .maybeSingle();
+    if (error) {
+      toast({ title: "Could not add habit", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (data) {
+      setHabits((prev) => [
+        {
+          id: data.id,
+          name: data.name,
+          goalPerWeek: data.goal_per_week ?? undefined,
+          createdAt: data.created_at,
+          active: data.active,
+        },
+        ...prev,
+      ]);
+    }
+  };
+
+  const toggleEntry = async (habitId: string, dateISO: string) => {
+    if (!userId) return;
+    const existing = entries.find((e) => e.habitId === habitId && e.date === dateISO);
+    if (!existing) {
+      const { data, error } = await supabase
+        .from("habit_entries")
+        .insert([{ user_id: userId, habit_id: habitId, date: dateISO, done: true }])
+        .select()
+        .maybeSingle();
+      if (error) {
+        toast({ title: "Update failed", description: error.message, variant: "destructive" });
+        return;
+      }
+      if (data) {
+        setEntries((prev) => [
+          { id: data.id, habitId: data.habit_id as string, date: dateISO, done: true },
+          ...prev,
+        ]);
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("habit_entries")
+        .update({ done: !existing.done })
+        .eq("id", existing.id)
+        .select()
+        .maybeSingle();
+      if (error) {
+        toast({ title: "Update failed", description: error.message, variant: "destructive" });
+        return;
+      }
+      if (data) {
+        setEntries((prev) => prev.map((e) => (e.id === existing.id ? { ...e, done: data.done as boolean } : e)));
+      }
+    }
   };
 
   const completedThisWeek = useMemo(() => {
@@ -217,15 +314,26 @@ export default function Index() {
   const totalCells = habits.length * 7 || 1;
   const progress = Math.round((completedThisWeek / totalCells) * 100);
 
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth", { replace: true });
+  };
+
+  if (loading) return null;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Top navigation (AWS-like) */}
       <header className="w-full border-b">
         <div className="bg-nav text-nav-foreground">
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
             <div className="font-semibold">Habit Tracker</div>
-            <div className="text-sm text-muted-foreground opacity-80">
-              {format(new Date(), "PPPP")}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground opacity-80 hidden sm:block">
+                {format(new Date(), "PPPP")}
+              </div>
+              <Button variant="secondary" onClick={signOut} className="gap-2">
+                <LogOut size={16} /> Sign out
+              </Button>
             </div>
           </div>
         </div>
