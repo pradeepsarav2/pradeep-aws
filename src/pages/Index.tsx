@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type Habit = {
   id: string;
   name: string;
+  notifyTime?: string;
   goalPerWeek?: number;
   createdAt: string;
   active: boolean;
@@ -28,16 +29,18 @@ export type HabitEntry = {
 };
 
 // Add Habit Dialog
-function AddHabit({ onAdd }: { onAdd: (name: string, goal?: number) => Promise<void> }) {
+function AddHabit({ onAdd }: { onAdd: (name: string, goal?: number, notifyTime?: string) => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [goal, setGoal] = useState<number | "">("");
+  const [time, setTime] = useState<string>("");
 
   const submit = async () => {
     if (!name.trim()) return;
-    await onAdd(name.trim(), goal === "" ? undefined : Number(goal));
+    await onAdd(name.trim(), goal === "" ? undefined : Number(goal), time || undefined);
     setName("");
     setGoal("");
+    setTime("");
     setOpen(false);
   };
 
@@ -76,6 +79,15 @@ function AddHabit({ onAdd }: { onAdd: (name: string, goal?: number) => Promise<v
               placeholder="e.g., 5"
             />
           </div>
+          <div className="grid gap-2">
+            <Label htmlFor="habit-time">Reminder time (optional)</Label>
+            <Input
+              id="habit-time"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.currentTarget.value)}
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button onClick={submit}>Save</Button>
@@ -98,6 +110,15 @@ function HabitTable({
   onToggle: (habitId: string, dateISO: string) => Promise<void>;
 }) {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+
+  const sortedHabits = useMemo(() => {
+    const toMinutes = (t?: string) => {
+      if (!t) return Number.POSITIVE_INFINITY;
+      const [hh, mm] = t.split(":");
+      return Number(hh) * 60 + Number(mm);
+    };
+    return [...habits].sort((a, b) => toMinutes(a.notifyTime) - toMinutes(b.notifyTime));
+  }, [habits]);
 
   const isDone = (habitId: string, dateISO: string) =>
     entries.some((e) => e.habitId === habitId && e.date === dateISO && e.done);
@@ -127,12 +148,15 @@ function HabitTable({
               </TableCell>
             </TableRow>
           ) : (
-            habits.map((h) => {
+            sortedHabits.map((h) => {
               const count = days.filter((d) => isDone(h.id, weekISO(d))).length;
               const goal = h.goalPerWeek ?? 7;
               return (
                 <TableRow key={h.id}>
-                  <TableCell className="font-medium">{h.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {h.name}
+                    {h.notifyTime && <span className="ml-2 text-xs text-muted-foreground">{h.notifyTime}</span>}
+                  </TableCell>
                   {days.map((d) => {
                     const iso = weekISO(d);
                     const done = isDone(h.id, iso);
@@ -190,6 +214,7 @@ export default function Index() {
       setUserId(uid);
       setLoading(false);
       if (!uid) navigate("/auth", { replace: true });
+      if (uid) void upsertProfileEmail(uid, session?.user?.email ?? null);
       if (uid) void refreshData(uid);
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -197,6 +222,7 @@ export default function Index() {
       setUserId(uid);
       setLoading(false);
       if (!uid) navigate("/auth", { replace: true });
+      if (uid) void upsertProfileEmail(uid, session?.user?.email ?? null);
       if (uid) void refreshData(uid);
     });
     return () => subscription.unsubscribe();
@@ -207,11 +233,17 @@ export default function Index() {
     await Promise.all([fetchHabits(uid), fetchEntries(uid)]);
   };
 
+  const upsertProfileEmail = async (uid: string, email?: string | null) => {
+    if (!email) return;
+    await supabase.from("profiles").upsert([{ id: uid, email }], { onConflict: "id" });
+  };
+
   const fetchHabits = async (uid: string) => {
     const { data, error } = await supabase
       .from("habits")
-      .select("id, name, goal_per_week, active, created_at")
+      .select("id, name, goal_per_week, active, created_at, notify_time")
       .eq("user_id", uid)
+      .order("notify_time", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
     if (error) {
       toast({ title: "Failed to load habits", description: error.message, variant: "destructive" });
@@ -223,6 +255,7 @@ export default function Index() {
       goalPerWeek: h.goal_per_week ?? undefined,
       createdAt: h.created_at as string,
       active: h.active as boolean,
+      notifyTime: typeof (h as any).notify_time === "string" ? (h as any).notify_time.slice(0, 5) : undefined,
     }));
     setHabits(mapped);
   };
@@ -245,11 +278,11 @@ export default function Index() {
     setEntries(mapped);
   };
 
-  const addHabit = async (name: string, goal?: number) => {
+  const addHabit = async (name: string, goal?: number, notifyTime?: string) => {
     if (!userId) return;
     const { data, error } = await supabase
       .from("habits")
-      .insert([{ user_id: userId, name, goal_per_week: goal, active: true }])
+      .insert([{ user_id: userId, name, goal_per_week: goal, active: true, notify_time: notifyTime ?? null }])
       .select()
       .maybeSingle();
     if (error) {
@@ -264,6 +297,7 @@ export default function Index() {
           goalPerWeek: data.goal_per_week ?? undefined,
           createdAt: data.created_at,
           active: data.active,
+          notifyTime: typeof (data as any).notify_time === "string" ? (data as any).notify_time.slice(0, 5) : undefined,
         },
         ...prev,
       ]);
