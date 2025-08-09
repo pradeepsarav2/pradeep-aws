@@ -28,10 +28,12 @@ serve(async (req: Request) => {
   const resend = new Resend(RESEND_API_KEY);
 
   try {
-    // Use current UTC time to match habits scheduled for this minute
+    // Use current IST time (Asia/Kolkata, UTC+05:30) to match habits scheduled for this minute
     const now = new Date();
-    const hh = String(now.getUTCHours()).padStart(2, "0");
-    const mm = String(now.getUTCMinutes()).padStart(2, "0");
+    // Compute IST by adding 5 hours 30 minutes to UTC
+    const ist = new Date(now.getTime() + (5 * 60 + 30) * 60 * 1000);
+    const hh = String(ist.getUTCHours()).padStart(2, "0");
+    const mm = String(ist.getUTCMinutes()).padStart(2, "0");
     const currentMinute = `${hh}:${mm}:00`;
 
     const { data: habits, error: habitsError } = await supabase
@@ -88,7 +90,7 @@ serve(async (req: Request) => {
           from: "Habit Tracker <onboarding@resend.dev>",
           to: [email],
           subject: `Reminder: ${h.name}`,
-          html: `<p>This is your scheduled reminder for habit: <strong>${h.name}</strong> at ${hh}:${mm} UTC.</p>`,
+          html: `<p>This is your scheduled reminder for habit: <strong>${h.name}</strong> at ${hh}:${mm} IST.</p>`,
         });
         sent++;
       } catch (e) {
