@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfWeek } from "date-fns";
-import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-
 // Types used on the client
 export type Habit = {
   id: string;
@@ -97,17 +99,75 @@ function AddHabit({ onAdd }: { onAdd: (name: string, goal?: number, notifyTime?:
   );
 }
 
+function EditHabit({ habit, onSave }: { habit: Habit; onSave: (id: string, updates: { name: string; goal?: number; notifyTime?: string; active: boolean; }) => Promise<void>; }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(habit.name);
+  const [goal, setGoal] = useState<number | "">(habit.goalPerWeek ?? "");
+  const [time, setTime] = useState<string>(habit.notifyTime ?? "");
+  const [active, setActive] = useState<boolean>(habit.active);
+
+  const submit = async () => {
+    if (!name.trim()) return;
+    const updates = { name: name.trim(), goal: goal === "" ? undefined : Number(goal), notifyTime: time || undefined, active };
+    await onSave(habit.id, updates);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Edit habit">
+          <Pencil size={16} />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit habit</DialogTitle>
+          <DialogDescription>Update habit details.</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-2">
+          <div className="grid gap-2">
+            <Label htmlFor={`edit-name-${habit.id}`}>Habit name</Label>
+            <Input id={`edit-name-${habit.id}`} value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`edit-goal-${habit.id}`}>Weekly goal</Label>
+            <Input id={`edit-goal-${habit.id}`} type="number" min={1} value={goal} onChange={(e) => setGoal(e.currentTarget.value === "" ? "" : Number(e.currentTarget.value))} />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`edit-time-${habit.id}`}>Reminder time</Label>
+            <Input id={`edit-time-${habit.id}`} type="time" value={time} onChange={(e) => setTime(e.currentTarget.value)} />
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor={`edit-active-${habit.id}`}>Active</Label>
+            <Switch id={`edit-active-${habit.id}`} checked={active} onCheckedChange={setActive} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={submit}>Save changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Habit Table
 function HabitTable({
   habits,
   entries,
   weekStart,
   onToggle,
+  onRemoveEntry,
+  onUpdateHabit,
+  onDeleteHabit,
 }: {
   habits: Habit[];
   entries: HabitEntry[];
   weekStart: Date;
   onToggle: (habitId: string, dateISO: string) => Promise<void>;
+  onRemoveEntry: (habitId: string, dateISO: string) => Promise<void>;
+  onUpdateHabit: (id: string, updates: { name: string; goal?: number; notifyTime?: string; active: boolean }) => Promise<void>;
+  onDeleteHabit: (id: string) => Promise<void>;
 }) {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
@@ -124,6 +184,43 @@ function HabitTable({
     entries.some((e) => e.habitId === habitId && e.date === dateISO && e.done);
 
   const weekISO = (d: Date) => format(d, "yyyy-MM-dd");
+
+  const computeStreaks = useMemo(() => {
+    const byHabit = new Map<string, Set<string>>();
+    entries.filter((e) => e.done).forEach((e) => {
+      const set = byHabit.get(e.habitId) ?? new Set<string>();
+      set.add(e.date);
+      byHabit.set(e.habitId, set);
+    });
+    return (habitId: string) => {
+      const set = byHabit.get(habitId) ?? new Set<string>();
+      // Current streak
+      let current = 0;
+      let d = new Date();
+      let ds = weekISO(d);
+      while (set.has(ds)) {
+        current++;
+        d = addDays(d, -1);
+        ds = weekISO(d);
+      }
+      // Longest streak
+      let longest = 0;
+      set.forEach((dateStr) => {
+        const start = new Date(`${dateStr}T00:00:00`);
+        const prev = weekISO(addDays(start, -1));
+        if (!set.has(prev)) {
+          let len = 1;
+          let cur = start;
+          while (set.has(weekISO(addDays(cur, 1)))) {
+            cur = addDays(cur, 1);
+            len++;
+          }
+          if (len > longest) longest = len;
+        }
+      });
+      return { current, longest };
+    };
+  }, [entries]);
 
   return (
     <div className="rounded-lg border bg-card">
