@@ -437,6 +437,80 @@ export default function Index() {
     }
   };
 
+  const removeEntry = async (habitId: string, dateISO: string) => {
+    if (!userId) return;
+    const existing = entries.find((e) => e.habitId === habitId && e.date === dateISO);
+    if (!existing) return;
+    const { error } = await supabase.from("habit_entries").delete().eq("id", existing.id);
+    if (error) {
+      toast({ title: "Remove failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    setEntries((prev) => prev.filter((e) => e.id !== existing.id));
+  };
+
+  const updateHabit = async (
+    id: string,
+    updates: { name: string; goal?: number; notifyTime?: string; active: boolean }
+  ) => {
+    if (!userId) return;
+    const payload: any = {
+      name: updates.name,
+      goal_per_week: updates.goal ?? null,
+      notify_time: updates.notifyTime ?? null,
+      active: updates.active,
+    };
+    const { data, error } = await supabase
+      .from("habits")
+      .update(payload)
+      .eq("id", id)
+      .select()
+      .maybeSingle();
+    if (error) {
+      toast({ title: "Update habit failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (data) {
+      setHabits((prev) =>
+        prev.map((h) =>
+          h.id === id
+            ? {
+                ...h,
+                name: data.name,
+                goalPerWeek: data.goal_per_week ?? undefined,
+                active: data.active,
+                notifyTime:
+                  typeof (data as any).notify_time === "string"
+                    ? (data as any).notify_time.slice(0, 5)
+                    : undefined,
+              }
+            : h
+        )
+      );
+    }
+  };
+
+  const deleteHabit = async (id: string) => {
+    if (!userId) return;
+    const { error: e1 } = await supabase
+      .from("habit_entries")
+      .delete()
+      .eq("habit_id", id)
+      .eq("user_id", userId);
+    if (e1) {
+      toast({ title: "Delete habit failed", description: e1.message, variant: "destructive" });
+      return;
+    }
+    const { error: e2 } = await supabase.from("habits").delete().eq("id", id);
+    if (e2) {
+      toast({ title: "Delete habit failed", description: e2.message, variant: "destructive" });
+      return;
+    }
+    setEntries((prev) => prev.filter((e) => e.habitId !== id));
+    setHabits((prev) => prev.filter((h) => h.id !== id));
+    toast({ title: "Habit deleted", description: "Habit and its entries were removed." });
+  };
+
   const completedThisWeek = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
     return entries.filter((e) => days.includes(e.date) && e.done).length;
@@ -504,7 +578,7 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        <HabitTable habits={habits} entries={entries} weekStart={weekStart} onToggle={toggleEntry} />
+        <HabitTable habits={habits} entries={entries} weekStart={weekStart} onToggle={toggleEntry} onRemoveEntry={removeEntry} onUpdateHabit={updateHabit} onDeleteHabit={deleteHabit} />
 
         {/* Structured data for SEO */}
         <script
