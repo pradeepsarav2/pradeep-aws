@@ -235,6 +235,7 @@ function HabitTable({
               </TableHead>
             ))}
             <TableHead className="text-right">Weekly</TableHead>
+            <TableHead className="text-right w-[140px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -251,30 +252,77 @@ function HabitTable({
               return (
                 <TableRow key={h.id}>
                   <TableCell className="font-medium">
-                    {h.name}
-                    {h.notifyTime && <span className="ml-2 text-xs text-muted-foreground">{h.notifyTime}</span>}
+                    <div className="flex items-center gap-2">
+                      <span>{h.name}</span>
+                      {h.notifyTime && (
+                        <span className="ml-1 text-xs text-muted-foreground">{h.notifyTime}</span>
+                      )}
+                      {(() => {
+                        const s = computeStreaks(h.id);
+                        return (
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            Current: {s.current} • Best: {s.longest}
+                          </span>
+                        );
+                      })()}
+                    </div>
                   </TableCell>
                   {days.map((d) => {
                     const iso = weekISO(d);
                     const done = isDone(h.id, iso);
-                    return (
-                      <TableCell key={iso} className="text-center">
-                        <button
-                          aria-label={`Toggle ${h.name} on ${format(d, "PPP")}`}
-                          onClick={() => onToggle(h.id, iso)}
-                          className={`inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-                            done ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-secondary"
-                          }`}
-                        >
-                          {done ? <CheckCircle2 size={18} /> : <span className="block h-3 w-3 rounded-sm border" />}
-                        </button>
-                      </TableCell>
-                    );
+                  return (
+                    <TableCell key={iso} className="text-center">
+                      <ContextMenu>
+                        <ContextMenuTrigger asChild>
+                          <button
+                            aria-label={`Toggle ${h.name} on ${format(d, "PPP")}`}
+                            onClick={() => onToggle(h.id, iso)}
+                            className={`inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                              done ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-secondary"
+                            }`}
+                          >
+                            {done ? <CheckCircle2 size={18} /> : <span className="block h-3 w-3 rounded-sm border" />}
+                          </button>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          {done && (
+                            <ContextMenuItem onClick={() => onRemoveEntry(h.id, iso)}>
+                              Remove entry
+                            </ContextMenuItem>
+                          )}
+                        </ContextMenuContent>
+                      </ContextMenu>
+                    </TableCell>
+                  );
                   })}
                   <TableCell className="text-right">
                     <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium border ${count >= goal ? "border-primary text-primary" : "bg-secondary"}`}>
                       {count}/{goal}
                     </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="inline-flex items-center gap-1">
+                      <EditHabit habit={h} onSave={onUpdateHabit} />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Delete habit">
+                            <Trash2 size={16} />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this habit?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will remove the habit and all its entries. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDeleteHabit(h.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </TableCell>
                 </TableRow>
               );
