@@ -4,11 +4,36 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Plus, Target, TrendingUp, TrendingDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format, parseISO } from "date-fns";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  TimeScale,
+  Filler,
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
+import 'chartjs-adapter-date-fns';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  TimeScale,
+  Filler
+);
 
 type WeightEntry = {
   id: string;
@@ -123,15 +148,127 @@ export function WeightTracker({ userId }: { userId: string }) {
     }
   };
 
-  const chartData = entries.map(entry => ({
-    date: format(parseISO(entry.date), 'MMM dd'),
-    weight: entry.weight,
-    goal: profile.goal_weight
-  }));
-
   const currentWeight = entries.length > 0 ? entries[entries.length - 1].weight : null;
   const previousWeight = entries.length > 1 ? entries[entries.length - 2].weight : null;
   const weightChange = currentWeight && previousWeight ? currentWeight - previousWeight : null;
+
+  // Prepare chart data
+  const chartData = {
+    datasets: [
+      {
+        label: 'Weight',
+        data: entries.map(entry => ({
+          x: entry.date,
+          y: entry.weight
+        })),
+        borderColor: 'hsl(var(--primary))',
+        backgroundColor: 'hsla(var(--primary), 0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: 'hsl(var(--primary))',
+        pointBorderColor: 'hsl(var(--background))',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.1,
+      },
+      ...(profile.goal_weight ? [{
+        label: 'Goal Weight',
+        data: entries.length > 0 ? [
+          { x: entries[0].date, y: profile.goal_weight },
+          { x: entries[entries.length - 1].date, y: profile.goal_weight }
+        ] : [],
+        borderColor: 'hsl(var(--muted-foreground))',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+      }] : [])
+    ]
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+      mode: 'index' as const,
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          usePointStyle: true,
+          padding: 20,
+          color: 'hsl(var(--foreground))',
+          font: {
+            size: 12,
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: 'hsl(var(--popover))',
+        titleColor: 'hsl(var(--popover-foreground))',
+        bodyColor: 'hsl(var(--popover-foreground))',
+        borderColor: 'hsl(var(--border))',
+        borderWidth: 1,
+        cornerRadius: 8,
+        displayColors: true,
+        callbacks: {
+          title: function(context: any) {
+            return format(parseISO(context[0].parsed.x), 'PPP');
+          },
+          label: function(context: any) {
+            return `${context.dataset.label}: ${context.parsed.y} kg`;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        type: 'time' as const,
+        time: {
+          unit: 'day' as const,
+          displayFormats: {
+            day: 'MMM dd'
+          }
+        },
+        grid: {
+          color: 'hsla(var(--border), 0.5)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: 'hsl(var(--muted-foreground))',
+          font: {
+            size: 11,
+          }
+        }
+      },
+      y: {
+        beginAtZero: false,
+        grid: {
+          color: 'hsla(var(--border), 0.5)',
+          drawBorder: false,
+        },
+        ticks: {
+          color: 'hsl(var(--muted-foreground))',
+          font: {
+            size: 11,
+          },
+          callback: function(value: any) {
+            return value + ' kg';
+          }
+        }
+      }
+    },
+    elements: {
+      point: {
+        hoverBorderWidth: 3,
+      }
+    }
+  };
 
   return (
     <Card>
@@ -215,20 +352,20 @@ export function WeightTracker({ userId }: { userId: string }) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-4">
+        <div className="grid gap-6">
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold">{currentWeight ? `${currentWeight} kg` : '--'}</div>
+            <div className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
+              <div className="text-2xl font-bold text-primary">{currentWeight ? `${currentWeight} kg` : '--'}</div>
               <div className="text-sm text-muted-foreground">Current Weight</div>
             </div>
             
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
+            <div className="text-center p-4 bg-gradient-to-br from-muted/50 to-muted/80 rounded-lg border">
               <div className="text-2xl font-bold">{profile.goal_weight ? `${profile.goal_weight} kg` : '--'}</div>
               <div className="text-sm text-muted-foreground">Goal Weight</div>
             </div>
             
-            <div className="text-center p-3 bg-muted/50 rounded-lg">
+            <div className="text-center p-4 bg-gradient-to-br from-secondary/50 to-secondary/80 rounded-lg border">
               <div className="flex items-center justify-center gap-2">
                 {weightChange !== null && (
                   <>
@@ -237,54 +374,54 @@ export function WeightTracker({ userId }: { userId: string }) {
                     ) : weightChange < 0 ? (
                       <TrendingDown className="h-4 w-4 text-green-500" />
                     ) : null}
-                    <span className="text-2xl font-bold">
+                    <span className={`text-2xl font-bold ${
+                      weightChange > 0 ? 'text-red-500' : 
+                      weightChange < 0 ? 'text-green-500' : 
+                      'text-muted-foreground'
+                    }`}>
                       {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
                     </span>
                   </>
                 )}
-                {weightChange === null && <span className="text-2xl font-bold">--</span>}
+                {weightChange === null && <span className="text-2xl font-bold text-muted-foreground">--</span>}
               </div>
               <div className="text-sm text-muted-foreground">Change</div>
             </div>
           </div>
 
           {/* Chart */}
-          {chartData.length > 0 && (
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis domain={['dataMin - 2', 'dataMax + 2']} />
-                  <Tooltip />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="weight" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    dot={{ fill: "hsl(var(--primary))" }}
-                    name="Weight"
-                  />
-                  {profile.goal_weight && (
-                    <Line 
-                      type="monotone" 
-                      dataKey="goal" 
-                      stroke="hsl(var(--muted-foreground))" 
-                      strokeWidth={1}
-                      strokeDasharray="5 5"
-                      dot={false}
-                      name="Goal"
-                    />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
+          {entries.length > 0 ? (
+            <div className="h-80 w-full bg-gradient-to-br from-background to-muted/20 rounded-lg border p-4">
+              <Line data={chartData} options={chartOptions} />
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground bg-gradient-to-br from-muted/20 to-muted/40 rounded-lg border">
+              <div className="space-y-2">
+                <div className="text-lg font-medium">No weight entries yet</div>
+                <div className="text-sm">Add your first entry to see your progress chart</div>
+              </div>
             </div>
           )}
 
-          {entries.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No weight entries yet. Add your first entry to get started!
+          {/* Recent entries */}
+          {entries.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Recent Entries</h3>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {entries.slice(-5).reverse().map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-md text-sm">
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium">{entry.weight} kg</span>
+                      <span className="text-muted-foreground">{format(parseISO(entry.date), 'MMM dd, yyyy')}</span>
+                    </div>
+                    {entry.notes && (
+                      <span className="text-xs text-muted-foreground italic max-w-32 truncate">
+                        {entry.notes}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
