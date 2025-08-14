@@ -8,9 +8,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfWeek } from "date-fns";
-import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2 } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { WeightTracker } from "@/components/WeightTracker";
@@ -596,48 +597,65 @@ export default function Index() {
       <main className="mx-auto max-w-7xl px-4 py-8">
         <h1 className="sr-only">Personal Dashboard</h1>
 
-        <Card className="mb-4">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Weekly overview</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={() => setWeekOffset((v) => v - 1)} aria-label="Previous week">
-                <ChevronLeft size={16} />
-              </Button>
-              <div className="text-sm text-muted-foreground min-w-[160px] text-center">
-                {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
-              </div>
-              <Button variant="secondary" onClick={() => setWeekOffset((v) => v + 1)} aria-label="Next week">
-                <ChevronRight size={16} />
-              </Button>
-              <div className="w-px h-6 bg-border" />
-              <AddHabit onAdd={addHabit} />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <div className="relative h-2 w-full rounded-full bg-muted">
-                <div
-                  className="absolute left-0 top-0 h-2 rounded-full bg-primary"
-                  style={{ width: `${progress}%` }}
-                  aria-hidden
-                />
-              </div>
-              <div className="text-sm text-muted-foreground w-24 text-right">{progress}%</div>
-            </div>
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="habits" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="habits" className="flex items-center gap-2">
+              <Calendar size={16} />
+              Habits
+            </TabsTrigger>
+            <TabsTrigger value="weight" className="flex items-center gap-2">
+              <TrendingUp size={16} />
+              Weight
+            </TabsTrigger>
+          </TabsList>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="lg:col-span-2">
-            <HabitTable habits={habits} entries={entries} weekStart={weekStart} onToggle={toggleEntry} onRemoveEntry={removeEntry} onUpdateHabit={updateHabit} onDeleteHabit={deleteHabit} />
-          </div>
-          
-          {userId && (
-            <div className="lg:col-span-2">
-              <WeightTracker userId={userId} />
-            </div>
-          )}
-        </div>
+          <TabsContent value="habits" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">Weekly overview</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" onClick={() => setWeekOffset((v) => v - 1)} aria-label="Previous week">
+                    <ChevronLeft size={16} />
+                  </Button>
+                  <div className="text-sm text-muted-foreground min-w-[160px] text-center">
+                    {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
+                  </div>
+                  <Button variant="secondary" onClick={() => setWeekOffset((v) => v + 1)} aria-label="Next week">
+                    <ChevronRight size={16} />
+                  </Button>
+                  <div className="w-px h-6 bg-border" />
+                  <AddHabit onAdd={addHabit} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <div className="relative h-2 w-full rounded-full bg-muted">
+                    <div
+                      className="absolute left-0 top-0 h-2 rounded-full bg-primary"
+                      style={{ width: `${progress}%` }}
+                      aria-hidden
+                    />
+                  </div>
+                  <div className="text-sm text-muted-foreground w-24 text-right">{progress}%</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <HabitTable 
+              habits={habits} 
+              entries={entries} 
+              weekStart={weekStart} 
+              onToggle={toggleEntry} 
+              onRemoveEntry={removeEntry} 
+              onUpdateHabit={updateHabit} 
+              onDeleteHabit={deleteHabit} 
+            />
+          </TabsContent>
+
+          <TabsContent value="weight" className="space-y-4">
+            {userId && <WeightTracker userId={userId} />}
+          </TabsContent>
+        </Tabs>
 
         {/* Structured data for SEO */}
         <script
