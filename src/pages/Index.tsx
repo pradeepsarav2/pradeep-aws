@@ -13,6 +13,7 @@ import { addDays, format, startOfWeek } from "date-fns";
 import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { WeightTracker } from "@/components/WeightTracker";
 // Types used on the client
 export type Habit = {
   id: string;
@@ -348,9 +349,9 @@ export default function Index() {
   const weekStart = useMemo(() => startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 }), [today, weekOffset]);
 
   useEffect(() => {
-    document.title = "AWS-Style Habit Tracker";
+    document.title = "Personal Dashboard";
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Track daily habits securely with Supabase-authenticated storage.");
+    if (meta) meta.setAttribute("content", "Track habits and weight with your personal dashboard.");
   }, []);
 
   useEffect(() => {
@@ -579,7 +580,7 @@ export default function Index() {
       <header className="w-full border-b">
         <div className="bg-nav text-nav-foreground">
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-            <div className="font-semibold">Habit Tracker</div>
+            <div className="font-semibold">Personal Dashboard</div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-muted-foreground opacity-80 hidden sm:block">
                 {format(new Date(), "PPPP")}
@@ -593,7 +594,7 @@ export default function Index() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8">
-        <h1 className="sr-only">AWS-Style Habit Tracker</h1>
+        <h1 className="sr-only">Personal Dashboard</h1>
 
         <Card className="mb-4">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -626,7 +627,17 @@ export default function Index() {
           </CardContent>
         </Card>
 
-        <HabitTable habits={habits} entries={entries} weekStart={weekStart} onToggle={toggleEntry} onRemoveEntry={removeEntry} onUpdateHabit={updateHabit} onDeleteHabit={deleteHabit} />
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="lg:col-span-2">
+            <HabitTable habits={habits} entries={entries} weekStart={weekStart} onToggle={toggleEntry} onRemoveEntry={removeEntry} onUpdateHabit={updateHabit} onDeleteHabit={deleteHabit} />
+          </div>
+          
+          {userId && (
+            <div className="lg:col-span-2">
+              <WeightTracker userId={userId} />
+            </div>
+          )}
+        </div>
 
         {/* Structured data for SEO */}
         <script
@@ -635,10 +646,10 @@ export default function Index() {
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
-              name: "AWS-Style Habit Tracker",
+              name: "Personal Dashboard",
               applicationCategory: "Productivity",
               operatingSystem: "Web",
-              description: "Track daily habits in a weekly grid with AWS Console light theme design.",
+              description: "Track habits and weight with your personal dashboard.",
             }),
           }}
         />

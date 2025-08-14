@@ -16,9 +16,9 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    document.title = mode === "signin" ? "Login - Habit Tracker" : "Sign up - Habit Tracker";
+    document.title = mode === "signin" ? "Login - Personal Dashboard" : "Sign up - Personal Dashboard";
     const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute("content", "Secure login and signup for Habit Tracker with email or Google.");
+    if (meta) meta.setAttribute("content", "Secure login and signup for Personal Dashboard.");
   }, [mode]);
 
   useEffect(() => {
@@ -58,13 +58,6 @@ export default function Auth() {
     }
   };
 
-  const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/` },
-    });
-    if (error) toast({ title: "Google sign-in failed", description: error.message, variant: "destructive" });
-  };
 
   return (
     <main className="min-h-screen grid place-items-center px-4">
@@ -79,23 +72,17 @@ export default function Auth() {
           <CardContent className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" onKeyDown={(e) => e.key === 'Enter' && (mode === 'signin' ? signIn() : signUp())} />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" onKeyDown={(e) => e.key === 'Enter' && (mode === 'signin' ? signIn() : signUp())} />
             </div>
             {mode === "signin" ? (
               <Button className="w-full" onClick={signIn} disabled={loading}>Sign In</Button>
             ) : (
               <Button className="w-full" onClick={signUp} disabled={loading}>Create account</Button>
             )}
-
-            <div className="text-center text-sm">or</div>
-
-            <Button variant="outline" className="w-full" onClick={signInWithGoogle}>
-              Continue with Google
-            </Button>
 
             <div className="text-center text-sm text-muted-foreground">
               {mode === "signin" ? (

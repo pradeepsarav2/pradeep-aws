@@ -87,7 +87,7 @@ serve(async (req: Request) => {
 
       try {
         await resend.emails.send({
-          from: "Habit Tracker <onboarding@resend.dev>",
+          from: "Personal Dashboard <onboarding@resend.dev>",
           to: [email],
           subject: `Reminder: ${h.name}`,
           html: `<p>This is your scheduled reminder for habit: <strong>${h.name}</strong> at ${hh}:${mm} IST.</p>`,
