@@ -271,127 +271,128 @@ export function WeightTracker({ userId }: { userId: string }) {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-medium">Weight Tracker</CardTitle>
-        <div className="flex gap-2">
-          <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Target className="h-4 w-4 mr-2" />
-                Goal
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Set Goal Weight</DialogTitle>
-                <DialogDescription>Set your target weight goal.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="goal-weight">Goal Weight (kg)</Label>
-                  <Input 
-                    id="goal-weight" 
-                    type="number" 
-                    step="0.1"
-                    value={goalWeight} 
-                    onChange={(e) => setGoalWeight(e.target.value)} 
-                    placeholder="70.0"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={updateGoal} disabled={loading}>
-                  Save Goal
+    <div className="space-y-8">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="text-center p-6 bg-background rounded-lg border shadow-sm">
+          <div className="text-4xl font-bold text-blue-600 mb-2">{currentWeight ? `${currentWeight} kg` : '--'}</div>
+          <div className="text-sm font-medium text-muted-foreground">Current Weight</div>
+        </div>
+        
+        <div className="text-center p-6 bg-background rounded-lg border shadow-sm">
+          <div className="text-4xl font-bold text-green-600 mb-2">{profile.goal_weight ? `${profile.goal_weight} kg` : '--'}</div>
+          <div className="text-sm font-medium text-muted-foreground">Goal Weight</div>
+        </div>
+        
+        <div className="text-center p-6 bg-background rounded-lg border shadow-sm">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            {weightChange !== null && (
+              <>
+                {weightChange > 0 ? (
+                  <TrendingUp className="h-5 w-5 text-orange-500" />
+                ) : weightChange < 0 ? (
+                  <TrendingDown className="h-5 w-5 text-green-500" />
+                ) : null}
+                <span className={`text-4xl font-bold ${
+                  weightChange > 0 ? 'text-orange-500' : 
+                  weightChange < 0 ? 'text-green-500' : 
+                  'text-muted-foreground'
+                }`}>
+                  {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
+                </span>
+              </>
+            )}
+            {weightChange === null && <span className="text-4xl font-bold text-muted-foreground">--</span>}
+          </div>
+          <div className="text-sm font-medium text-muted-foreground">Change</div>
+        </div>
+      </div>
+
+      {/* Weight Tracker Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-2xl font-bold">Weight Tracker</CardTitle>
+          <div className="flex gap-2">
+            <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Target className="h-4 w-4 mr-2" />
+                  Goal
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Entry
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Weight Entry</DialogTitle>
-                <DialogDescription>Record your current weight for today.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="weight">Weight (kg)</Label>
-                  <Input 
-                    id="weight" 
-                    type="number" 
-                    step="0.1"
-                    value={weight} 
-                    onChange={(e) => setWeight(e.target.value)} 
-                    placeholder="70.0"
-                  />
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Set Goal Weight</DialogTitle>
+                  <DialogDescription>Set your target weight goal.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="goal-weight">Goal Weight (kg)</Label>
+                    <Input 
+                      id="goal-weight" 
+                      type="number" 
+                      step="0.1"
+                      value={goalWeight} 
+                      onChange={(e) => setGoalWeight(e.target.value)} 
+                      placeholder="70.0"
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="notes">Notes (optional)</Label>
-                  <Input 
-                    id="notes" 
-                    value={notes} 
-                    onChange={(e) => setNotes(e.target.value)} 
-                    placeholder="Feeling good, had a good workout..."
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={addEntry} disabled={loading}>
+                <DialogFooter>
+                  <Button onClick={updateGoal} disabled={loading}>
+                    Save Goal
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Entry
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-6">
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
-              <div className="text-2xl font-bold text-primary">{currentWeight ? `${currentWeight} kg` : '--'}</div>
-              <div className="text-sm text-muted-foreground">Current Weight</div>
-            </div>
-            
-            <div className="text-center p-4 bg-gradient-to-br from-muted/50 to-muted/80 rounded-lg border">
-              <div className="text-2xl font-bold">{profile.goal_weight ? `${profile.goal_weight} kg` : '--'}</div>
-              <div className="text-sm text-muted-foreground">Goal Weight</div>
-            </div>
-            
-            <div className="text-center p-4 bg-gradient-to-br from-secondary/50 to-secondary/80 rounded-lg border">
-              <div className="flex items-center justify-center gap-2">
-                {weightChange !== null && (
-                  <>
-                    {weightChange > 0 ? (
-                      <TrendingUp className="h-4 w-4 text-red-500" />
-                    ) : weightChange < 0 ? (
-                      <TrendingDown className="h-4 w-4 text-green-500" />
-                    ) : null}
-                    <span className={`text-2xl font-bold ${
-                      weightChange > 0 ? 'text-red-500' : 
-                      weightChange < 0 ? 'text-green-500' : 
-                      'text-muted-foreground'
-                    }`}>
-                      {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
-                    </span>
-                  </>
-                )}
-                {weightChange === null && <span className="text-2xl font-bold text-muted-foreground">--</span>}
-              </div>
-              <div className="text-sm text-muted-foreground">Change</div>
-            </div>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add Weight Entry</DialogTitle>
+                  <DialogDescription>Record your current weight for today.</DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Input 
+                      id="weight" 
+                      type="number" 
+                      step="0.1"
+                      value={weight} 
+                      onChange={(e) => setWeight(e.target.value)} 
+                      placeholder="70.0"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">Notes (optional)</Label>
+                    <Input 
+                      id="notes" 
+                      value={notes} 
+                      onChange={(e) => setNotes(e.target.value)} 
+                      placeholder="Feeling good, had a good workout..."
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={addEntry} disabled={loading}>
+                    Add Entry
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-
+        </CardHeader>
+        <CardContent className="space-y-6">
           {/* Chart */}
           {entries.length > 0 ? (
-            <div className="h-80 w-full bg-gradient-to-br from-background to-muted/20 rounded-lg border p-4">
+            <div className="h-64 w-full bg-gradient-to-br from-muted/10 to-muted/30 rounded-lg p-4">
               <Line data={chartData} options={chartOptions} />
             </div>
           ) : (
@@ -405,27 +406,22 @@ export function WeightTracker({ userId }: { userId: string }) {
 
           {/* Recent entries */}
           {entries.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">Recent Entries</h3>
-              <div className="space-y-1 max-h-32 overflow-y-auto">
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold">Recent Entries</h3>
+              <div className="space-y-3">
                 {entries.slice(-5).reverse().map((entry) => (
-                  <div key={entry.id} className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-md text-sm">
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium">{entry.weight} kg</span>
-                      <span className="text-muted-foreground">{format(parseISO(entry.date), 'MMM dd, yyyy')}</span>
+                  <div key={entry.id} className="flex items-center justify-between py-3 px-4 bg-muted/20 rounded-lg border">
+                    <div className="flex items-center gap-4">
+                      <span className="text-lg font-semibold">{format(parseISO(entry.date), 'MMM dd')}</span>
                     </div>
-                    {entry.notes && (
-                      <span className="text-xs text-muted-foreground italic max-w-32 truncate">
-                        {entry.notes}
-                      </span>
-                    )}
+                    <div className="text-lg font-bold">{entry.weight} kg</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
