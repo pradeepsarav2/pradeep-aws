@@ -218,7 +218,10 @@ export function WeightTracker({ userId }: { userId: string }) {
         displayColors: true,
         callbacks: {
           title: function(context: any) {
-            return format(parseISO(context[0].parsed.x), 'PPP');
+            const dateValue = context[0].parsed.x;
+            // Handle both string and Date/timestamp values
+            const date = typeof dateValue === 'string' ? parseISO(dateValue) : new Date(dateValue);
+            return format(date, 'PPP');
           },
           label: function(context: any) {
             return `${context.dataset.label}: ${context.parsed.y} kg`;
