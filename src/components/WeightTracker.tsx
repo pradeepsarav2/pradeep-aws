@@ -156,21 +156,28 @@ export function WeightTracker({ userId }: { userId: string }) {
   const chartData = {
     datasets: [
       {
-        label: 'Weight',
+        label: 'Weight Progress',
         data: entries.map(entry => ({
           x: entry.date,
           y: entry.weight
         })),
-        borderColor: 'hsl(var(--primary))',
-        backgroundColor: 'hsla(var(--primary), 0.1)',
-        borderWidth: 2,
-        pointBackgroundColor: 'hsl(var(--primary))',
-        pointBorderColor: 'hsl(var(--background))',
-        pointBorderWidth: 2,
-        pointRadius: 4,
-        pointHoverRadius: 6,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+        borderWidth: 3,
+        pointBackgroundColor: '#3b82f6',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 3,
+        pointRadius: 6,
+        pointHoverRadius: 8,
+        pointHoverBackgroundColor: '#1d4ed8',
+        pointHoverBorderColor: '#ffffff',
+        pointHoverBorderWidth: 3,
         fill: true,
-        tension: 0.1,
+        tension: 0.4,
+        shadowOffsetX: 0,
+        shadowOffsetY: 4,
+        shadowBlur: 8,
+        shadowColor: 'rgba(59, 130, 246, 0.3)',
       },
       ...(profile.goal_weight ? [{
         label: 'Goal Weight',
@@ -178,13 +185,14 @@ export function WeightTracker({ userId }: { userId: string }) {
           { x: entries[0].date, y: profile.goal_weight },
           { x: entries[entries.length - 1].date, y: profile.goal_weight }
         ] : [],
-        borderColor: 'hsl(var(--muted-foreground))',
+        borderColor: '#10b981',
         backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderDash: [5, 5],
+        borderWidth: 3,
+        borderDash: [8, 4],
         pointRadius: 0,
         pointHoverRadius: 0,
         fill: false,
+        tension: 0,
       }] : [])
     ]
   };
@@ -201,25 +209,31 @@ export function WeightTracker({ userId }: { userId: string }) {
         position: 'top' as const,
         labels: {
           usePointStyle: true,
-          padding: 20,
-          color: 'hsl(var(--foreground))',
+          padding: 24,
+          color: '#64748b',
           font: {
-            size: 12,
+            size: 14,
           }
         }
       },
       tooltip: {
-        backgroundColor: 'hsl(var(--popover))',
-        titleColor: 'hsl(var(--popover-foreground))',
-        bodyColor: 'hsl(var(--popover-foreground))',
-        borderColor: 'hsl(var(--border))',
+        backgroundColor: '#ffffff',
+        titleColor: '#1e293b',
+        bodyColor: '#475569',
+        borderColor: '#e2e8f0',
         borderWidth: 1,
-        cornerRadius: 8,
+        cornerRadius: 12,
         displayColors: true,
+        padding: 12,
+        titleFont: {
+          size: 14,
+        },
+        bodyFont: {
+          size: 13,
+        },
         callbacks: {
           title: function(context: any) {
             const dateValue = context[0].parsed.x;
-            // Handle both string and Date/timestamp values
             const date = typeof dateValue === 'string' ? parseISO(dateValue) : new Date(dateValue);
             return format(date, 'PPP');
           },
@@ -239,27 +253,34 @@ export function WeightTracker({ userId }: { userId: string }) {
           }
         },
         grid: {
-          color: 'hsla(var(--border), 0.5)',
-          drawBorder: false,
+          display: false,
+        },
+        border: {
+          display: false,
         },
         ticks: {
-          color: 'hsl(var(--muted-foreground))',
+          color: '#94a3b8',
           font: {
-            size: 11,
-          }
+            size: 12,
+          },
+          padding: 10,
         }
       },
       y: {
         beginAtZero: false,
         grid: {
-          color: 'hsla(var(--border), 0.5)',
+          color: '#f1f5f9',
           drawBorder: false,
         },
+        border: {
+          display: false,
+        },
         ticks: {
-          color: 'hsl(var(--muted-foreground))',
+          color: '#94a3b8',
           font: {
-            size: 11,
+            size: 12,
           },
+          padding: 10,
           callback: function(value: any) {
             return value + ' kg';
           }
@@ -268,7 +289,7 @@ export function WeightTracker({ userId }: { userId: string }) {
     },
     elements: {
       point: {
-        hoverBorderWidth: 3,
+        hoverBorderWidth: 4,
       }
     }
   };
