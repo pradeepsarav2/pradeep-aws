@@ -1,0 +1,387 @@
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { format, addDays, startOfWeek, isSameDay } from "date-fns";
+import { Plus, Play, Pause, Square, Clock, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+
+export type Task = {
+  id: string;
+  title: string;
+  description?: string;
+  date: string; // YYYY-MM-DD
+  completed: boolean;
+  timeSpent: number; // seconds
+  userId: string;
+  createdAt: string;
+};
+
+type TaskTrackerProps = {
+  userId: string;
+};
+
+export function TaskTracker({ userId }: TaskTrackerProps) {
+  const { toast } = useToast();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [timers, setTimers] = useState<Map<string, { isRunning: boolean; startTime: number }>>(new Map());
+
+  const today = new Date();
+  const weekStart = useMemo(() => startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 }), [today, weekOffset]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchTasks();
+    }
+  }, [userId]);
+
+  const fetchTasks = async () => {
+    const { data, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      toast({ title: "Failed to load tasks", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const mappedTasks: Task[] = (data || []).map(task => ({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      date: task.date,
+      completed: task.completed,
+      timeSpent: task.time_spent || 0,
+      userId: task.user_id,
+      createdAt: task.created_at,
+    }));
+
+    setTasks(mappedTasks);
+  };
+
+  const addTask = async () => {
+    if (!newTaskTitle.trim() || !selectedDate) return;
+
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert([{
+        user_id: userId,
+        title: newTaskTitle.trim(),
+        date: selectedDate,
+        completed: false,
+        time_spent: 0
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      toast({ title: "Failed to add task", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    const newTask: Task = {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      date: data.date,
+      completed: data.completed,
+      timeSpent: data.time_spent || 0,
+      userId: data.user_id,
+      createdAt: data.created_at,
+    };
+
+    setTasks(prev => [newTask, ...prev]);
+    setNewTaskTitle("");
+    setSelectedDate("");
+    setIsDialogOpen(false);
+    toast({ title: "Task added", description: "Your task has been created successfully." });
+  };
+
+  const toggleTaskCompletion = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({ completed: !task.completed })
+      .eq("id", taskId);
+
+    if (error) {
+      toast({ title: "Failed to update task", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+  };
+
+  const deleteTask = async (taskId: string) => {
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", taskId);
+
+    if (error) {
+      toast({ title: "Failed to delete task", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    toast({ title: "Task deleted", description: "Task has been removed successfully." });
+  };
+
+  const startTimer = (taskId: string) => {
+    setTimers(prev => new Map(prev).set(taskId, { isRunning: true, startTime: Date.now() }));
+  };
+
+  const stopTimer = async (taskId: string) => {
+    const timer = timers.get(taskId);
+    if (!timer || !timer.isRunning) return;
+
+    const timeElapsed = Math.floor((Date.now() - timer.startTime) / 1000);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const newTimeSpent = task.timeSpent + timeElapsed;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({ time_spent: newTimeSpent })
+      .eq("id", taskId);
+
+    if (error) {
+      toast({ title: "Failed to update time", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, timeSpent: newTimeSpent } : t));
+    setTimers(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(taskId);
+      return newMap;
+    });
+  };
+
+  const formatTime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+
+  const moveTask = async (taskId: string, newDate: string) => {
+    const { error } = await supabase
+      .from("tasks")
+      .update({ date: newDate })
+      .eq("id", taskId);
+
+    if (error) {
+      toast({ title: "Failed to move task", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, date: newDate } : t));
+  };
+
+  const getTasksForDate = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return tasks.filter(task => task.date === dateStr);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Week Navigation */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base">Tasks Calendar</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setWeekOffset(v => v - 1)} aria-label="Previous week">
+              <ChevronLeft size={16} />
+            </Button>
+            <div className="text-sm text-muted-foreground min-w-[160px] text-center">
+              {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
+            </div>
+            <Button variant="secondary" onClick={() => setWeekOffset(v => v + 1)} aria-label="Next week">
+              <ChevronRight size={16} />
+            </Button>
+            <div className="w-px h-6 bg-border" />
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="default" className="gap-2">
+                  <Plus size={18} /> Add Task
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Task</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Task Title</label>
+                    <Input
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="Enter task title..."
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Date</label>
+                    <Input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                    />
+                  </div>
+                  <Button onClick={addTask} className="w-full">
+                    Add Task
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Weekly Calendar View */}
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+        {weekDays.map((day) => {
+          const dayTasks = getTasksForDate(day);
+          const isToday = isSameDay(day, today);
+          
+          return (
+            <Card key={day.toISOString()} className={`min-h-[300px] ${isToday ? 'ring-2 ring-primary' : ''}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-center">
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-muted-foreground">{format(day, "EEE")}</span>
+                    <span className={`text-lg ${isToday ? 'text-primary font-bold' : ''}`}>
+                      {format(day, "d")}
+                    </span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {dayTasks.map((task) => {
+                  const timer = timers.get(task.id);
+                  const isRunning = timer?.isRunning || false;
+                  
+                  return (
+                    <div
+                      key={task.id}
+                      className={`p-3 rounded-lg border bg-card text-card-foreground transition-colors hover:bg-accent/50 ${
+                        task.completed ? 'opacity-60' : ''
+                      }`}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("taskId", task.id);
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`font-medium text-sm ${task.completed ? 'line-through' : ''}`}>
+                            {task.title}
+                          </h4>
+                          {task.timeSpent > 0 && (
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                              <Clock size={12} />
+                              {formatTime(task.timeSpent)}
+                            </div>
+                          )}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                              <MoreVertical size={12} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)}>
+                              {task.completed ? "Mark Incomplete" : "Mark Complete"}
+                            </DropdownMenuItem>
+                            {isRunning ? (
+                              <DropdownMenuItem onClick={() => stopTimer(task.id)}>
+                                <Pause size={12} className="mr-2" />
+                                Stop Timer
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => startTimer(task.id)}>
+                                <Play size={12} className="mr-2" />
+                                Start Timer
+                              </DropdownMenuItem>
+                            )}
+                            {weekDays.map((moveDay) => (
+                              <DropdownMenuItem 
+                                key={moveDay.toISOString()}
+                                onClick={() => moveTask(task.id, format(moveDay, "yyyy-MM-dd"))}
+                              >
+                                Move to {format(moveDay, "EEE d")}
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuItem 
+                              onClick={() => deleteTask(task.id)}
+                              className="text-destructive"
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      
+                      {/* Timer Display */}
+                      {isRunning && (
+                        <Badge variant="secondary" className="mt-2 text-xs">
+                          <Clock size={10} className="mr-1" />
+                          Running...
+                        </Badge>
+                      )}
+                      
+                      {/* Task Status */}
+                      <Badge 
+                        variant={task.completed ? "default" : "secondary"} 
+                        className="mt-2 text-xs"
+                      >
+                        {task.completed ? "Completed" : "Pending"}
+                      </Badge>
+                    </div>
+                  );
+                })}
+                
+                {/* Drop Zone */}
+                <div
+                  className="p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg text-center text-xs text-muted-foreground hover:border-muted-foreground/40 transition-colors"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const taskId = e.dataTransfer.getData("taskId");
+                    if (taskId) {
+                      moveTask(taskId, format(day, "yyyy-MM-dd"));
+                    }
+                  }}
+                >
+                  Drop tasks here
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

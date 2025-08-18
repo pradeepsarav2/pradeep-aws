@@ -11,10 +11,11 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfWeek } from "date-fns";
-import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp, CheckSquare } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { WeightTracker } from "@/components/WeightTracker";
+import { TaskTracker } from "@/components/TaskTracker";
 // Types used on the client
 export type Habit = {
   id: string;
@@ -561,13 +562,31 @@ export default function Index() {
     toast({ title: "Habit deleted", description: "Habit and its entries were removed." });
   };
 
-  const completedThisWeek = useMemo(() => {
+  const weeklyProgress = useMemo(() => {
     const days = Array.from({ length: 7 }, (_, i) => format(addDays(weekStart, i), "yyyy-MM-dd"));
-    return entries.filter((e) => days.includes(e.date) && e.done).length;
-  }, [entries, weekStart]);
-
-  const totalCells = habits.length * 7 || 1;
-  const progress = Math.round((completedThisWeek / totalCells) * 100);
+    
+    // Calculate total possible completions based on each habit's weekly goal
+    let totalPossibleCompletions = 0;
+    let actualCompletions = 0;
+    
+    habits.forEach(habit => {
+      const habitGoal = habit.goalPerWeek ?? 7;
+      const habitCompletions = entries.filter(e => 
+        e.habitId === habit.id && 
+        days.includes(e.date) && 
+        e.done
+      ).length;
+      
+      totalPossibleCompletions += habitGoal;
+      actualCompletions += Math.min(habitCompletions, habitGoal);
+    });
+    
+    const progress = totalPossibleCompletions > 0 
+      ? Math.round((actualCompletions / totalPossibleCompletions) * 100)
+      : 0;
+      
+    return { progress, actualCompletions, totalPossibleCompletions };
+  }, [entries, weekStart, habits]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -598,7 +617,7 @@ export default function Index() {
         <h1 className="sr-only">Personal Dashboard</h1>
 
         <Tabs defaultValue="habits" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="habits" className="flex items-center gap-2">
               <Calendar size={16} />
               Habits
@@ -606,6 +625,10 @@ export default function Index() {
             <TabsTrigger value="weight" className="flex items-center gap-2">
               <TrendingUp size={16} />
               Weight
+            </TabsTrigger>
+            <TabsTrigger value="tasks" className="flex items-center gap-2">
+              <CheckSquare size={16} />
+              Tasks
             </TabsTrigger>
           </TabsList>
 
@@ -632,11 +655,13 @@ export default function Index() {
                   <div className="relative h-2 w-full rounded-full bg-muted">
                     <div
                       className="absolute left-0 top-0 h-2 rounded-full bg-primary"
-                      style={{ width: `${progress}%` }}
+                      style={{ width: `${weeklyProgress.progress}%` }}
                       aria-hidden
                     />
                   </div>
-                  <div className="text-sm text-muted-foreground w-24 text-right">{progress}%</div>
+                  <div className="text-sm text-muted-foreground w-24 text-right">
+                    {weeklyProgress.progress}% ({weeklyProgress.actualCompletions}/{weeklyProgress.totalPossibleCompletions})
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -654,6 +679,10 @@ export default function Index() {
 
           <TabsContent value="weight" className="space-y-4">
             {userId && <WeightTracker userId={userId} />}
+          </TabsContent>
+
+          <TabsContent value="tasks" className="space-y-4">
+            {userId && <TaskTracker userId={userId} />}
           </TabsContent>
         </Tabs>
 
