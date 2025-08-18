@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
-import { Plus, Play, Pause, Square, Clock, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, MoreVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,7 +16,6 @@ export type Task = {
   description?: string;
   date: string; // YYYY-MM-DD
   completed: boolean;
-  timeSpent: number; // seconds
   userId: string;
   createdAt: string;
 };
@@ -32,10 +31,12 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [timers, setTimers] = useState<Map<string, { isRunning: boolean; startTime: number }>>(new Map());
 
   const today = new Date();
-  const weekStart = useMemo(() => startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 }), [today, weekOffset]);
+  const weekStart = useMemo(
+    () => startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 }),
+    [today, weekOffset]
+  );
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
   useEffect(() => {
@@ -62,7 +63,6 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       description: task.description,
       date: task.date,
       completed: task.completed,
-      timeSpent: task.time_spent || 0,
       userId: task.user_id,
       createdAt: task.created_at,
     }));
@@ -75,13 +75,14 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
 
     const { data, error } = await (supabase as any)
       .from("tasks")
-      .insert([{
-        user_id: userId,
-        title: newTaskTitle.trim(),
-        date: selectedDate,
-        completed: false,
-        time_spent: 0
-      }])
+      .insert([
+        {
+          user_id: userId,
+          title: newTaskTitle.trim(),
+          date: selectedDate,
+          completed: false,
+        },
+      ])
       .select()
       .single();
 
@@ -96,12 +97,11 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       description: data.description,
       date: data.date,
       completed: data.completed,
-      timeSpent: data.time_spent || 0,
       userId: data.user_id,
       createdAt: data.created_at,
     };
 
-    setTasks(prev => [newTask, ...prev]);
+    setTasks((prev) => [newTask, ...prev]);
     setNewTaskTitle("");
     setSelectedDate("");
     setIsDialogOpen(false);
@@ -109,7 +109,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   };
 
   const toggleTaskCompletion = async (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
     const { error } = await (supabase as any)
@@ -122,7 +122,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       return;
     }
 
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t)));
   };
 
   const deleteTask = async (taskId: string) => {
@@ -136,54 +136,8 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       return;
     }
 
-    setTasks(prev => prev.filter(t => t.id !== taskId));
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
     toast({ title: "Task deleted", description: "Task has been removed successfully." });
-  };
-
-  const startTimer = (taskId: string) => {
-    setTimers(prev => new Map(prev).set(taskId, { isRunning: true, startTime: Date.now() }));
-  };
-
-  const stopTimer = async (taskId: string) => {
-    const timer = timers.get(taskId);
-    if (!timer || !timer.isRunning) return;
-
-    const timeElapsed = Math.floor((Date.now() - timer.startTime) / 1000);
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const newTimeSpent = task.timeSpent + timeElapsed;
-
-    const { error } = await (supabase as any)
-      .from("tasks")
-      .update({ time_spent: newTimeSpent })
-      .eq("id", taskId);
-
-    if (error) {
-      toast({ title: "Failed to update time", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, timeSpent: newTimeSpent } : t));
-    setTimers(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(taskId);
-      return newMap;
-    });
-  };
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${secs}s`;
-    } else {
-      return `${secs}s`;
-    }
   };
 
   const moveTask = async (taskId: string, newDate: string) => {
@@ -197,12 +151,15 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       return;
     }
 
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, date: newDate } : t));
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, date: newDate } : t)));
   };
 
+  // Incomplete tasks first, completed at the bottom
   const getTasksForDate = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return tasks.filter(task => task.date === dateStr);
+    return tasks
+      .filter((task) => task.date === dateStr)
+      .sort((a, b) => Number(a.completed) - Number(b.completed));
   };
 
   return (
@@ -212,13 +169,13 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Tasks Calendar</CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setWeekOffset(v => v - 1)} aria-label="Previous week">
+            <Button variant="secondary" onClick={() => setWeekOffset((v) => v - 1)} aria-label="Previous week">
               <ChevronLeft size={16} />
             </Button>
             <div className="text-xs text-muted-foreground min-w-[160px] text-center">
               {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
             </div>
-            <Button variant="secondary" onClick={() => setWeekOffset(v => v + 1)} aria-label="Next week">
+            <Button variant="secondary" onClick={() => setWeekOffset((v) => v + 1)} aria-label="Next week">
               <ChevronRight size={16} />
             </Button>
             <div className="w-px h-6 bg-border" />
@@ -235,19 +192,11 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 <div className="space-y-4">
                   <div>
                     <label className="text-xs font-medium">Task Title</label>
-                    <Input
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      placeholder="Enter task title..."
-                    />
+                    <Input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Enter task title..." />
                   </div>
                   <div>
                     <label className="text-xs font-medium">Date</label>
-                    <Input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                    />
+                    <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
                   </div>
                   <Button onClick={addTask} className="w-full">
                     Add Task
@@ -264,30 +213,25 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
         {weekDays.map((day) => {
           const dayTasks = getTasksForDate(day);
           const isToday = isSameDay(day, today);
-          
+
           return (
-            <Card key={day.toISOString()} className={`min-h-[500px] ${isToday ? 'ring-2 ring-primary shadow-lg' : ''}`}>
+            <Card key={day.toISOString()} className={`min-h-[500px] ${isToday ? "ring-2 ring-primary shadow-lg" : ""}`}>
               <CardHeader className="pb-4">
                 <CardTitle className="text-xs font-semibold text-center">
                   <div className="flex flex-col items-center space-y-1">
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">{format(day, "EEE")}</span>
-                    <span className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>
-                      {format(day, "d")}
-                    </span>
+                    <span className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>{format(day, "d")}</span>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 px-4">
                 {dayTasks.map((task) => {
-                  const timer = timers.get(task.id);
-                  const isRunning = timer?.isRunning || false;
-                  
                   return (
                     <div
                       key={task.id}
                       className={`p-4 rounded-xl border bg-card text-card-foreground transition-all hover:shadow-md hover:scale-[1.02] ${
-                        task.completed ? 'opacity-70 bg-muted/50' : 'hover:bg-accent/30'
-                      } ${isRunning ? 'ring-2 ring-green-500/50 bg-green-50/50 dark:bg-green-950/20' : ''}`}
+                        task.completed ? "opacity-70 bg-muted/50" : "hover:bg-accent/30"
+                      }`}
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData("taskId", task.id);
@@ -295,29 +239,19 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h6 className={`font-semibold text-xs leading-tight ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          <h6 className={`font-semibold text-xs leading-tight ${task.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
                             {task.title}
                           </h6>
-                          
                         </div>
-</div>
-                      
-                        <div className="mt-3 flex justify-between items-center">
+                      </div>
+
+                      <div className="mt-3 flex justify-between items-center">
                         <div className="flex items-center gap-2">
-                          {/* Timer Display */}
-                          {isRunning && (
-                            <Badge variant="default" className="text-xs font-medium bg-green-500 hover:bg-green-600">
-                              <Clock size={12} className="mr-1" />
-                              Running
-                            </Badge>
-                          )}
-                          
-                          {/* Task Status */}
-                          <Badge 
-                            variant={task.completed ? "default" : "secondary"} 
+                          <Badge
+                            variant={task.completed ? "default" : "secondary"}
                             className={`text-xs font-medium ${
-                              task.completed 
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+                              task.completed
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                                 : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
                             }`}
                           >
@@ -325,15 +259,6 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                           </Badge>
                         </div>
 
-                        <div className="flex items-center gap-2">
-
-                        {task.timeSpent > 0 && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2 bg-accent/30 rounded-md px-2 py-1 w-fit">
-                              <Clock size={14} />
-                              <span className="font-medium">{formatTime(task.timeSpent)}</span>
-                            </div>
-                          )}
-                                                </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
@@ -344,19 +269,8 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                             <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-xs">
                               {task.completed ? "Mark Incomplete" : "Mark Complete"}
                             </DropdownMenuItem>
-                            {isRunning ? (
-                              <DropdownMenuItem onClick={() => stopTimer(task.id)} className="text-xs">
-                                <Pause size={14} className="mr-2" />
-                                Stop Timer
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem onClick={() => startTimer(task.id)} className="text-xs">
-                                <Play size={14} className="mr-2" />
-                                Start Timer
-                              </DropdownMenuItem>
-                            )}
                             {weekDays.map((moveDay) => (
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 key={moveDay.toISOString()}
                                 onClick={() => moveTask(task.id, format(moveDay, "yyyy-MM-dd"))}
                                 className="text-xs"
@@ -364,21 +278,16 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                                 Move to {format(moveDay, "EEE d")}
                               </DropdownMenuItem>
                             ))}
-                            <DropdownMenuItem 
-                              onClick={() => deleteTask(task.id)}
-                              className="text-destructive text-xs"
-                            >
+                            <DropdownMenuItem onClick={() => deleteTask(task.id)} className="text-destructive text-xs">
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
-                      
-                      
                     </div>
                   );
                 })}
-                
+
                 {/* Drop Zone */}
                 <div
                   className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-xs text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
