@@ -118,6 +118,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tasks: {
+        Row: {
+          completed: boolean
+          created_at: string
+          date: string
+          description: string | null
+          id: string
+          time_spent: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          time_spent?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          description?: string | null
+          id?: string
+          time_spent?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       weight_entries: {
         Row: {
           created_at: string

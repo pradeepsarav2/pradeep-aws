@@ -45,7 +45,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   }, [userId]);
 
   const fetchTasks = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("tasks")
       .select("*")
       .eq("user_id", userId)
@@ -56,7 +56,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       return;
     }
 
-    const mappedTasks: Task[] = (data || []).map(task => ({
+    const mappedTasks: Task[] = (data || []).map((task: any) => ({
       id: task.id,
       title: task.title,
       description: task.description,
@@ -73,7 +73,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   const addTask = async () => {
     if (!newTaskTitle.trim() || !selectedDate) return;
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("tasks")
       .insert([{
         user_id: userId,
@@ -112,7 +112,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("tasks")
       .update({ completed: !task.completed })
       .eq("id", taskId);
@@ -126,7 +126,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   };
 
   const deleteTask = async (taskId: string) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("tasks")
       .delete()
       .eq("id", taskId);
@@ -154,7 +154,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
 
     const newTimeSpent = task.timeSpent + timeElapsed;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("tasks")
       .update({ time_spent: newTimeSpent })
       .eq("id", taskId);
@@ -187,7 +187,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   };
 
   const moveTask = async (taskId: string, newDate: string) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from("tasks")
       .update({ date: newDate })
       .eq("id", taskId);
