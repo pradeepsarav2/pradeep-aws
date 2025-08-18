@@ -599,7 +599,7 @@ export default function Index() {
     <div className="min-h-screen bg-background">
       <header className="w-full border-b">
         <div className="bg-nav text-nav-foreground">
-          <div className="mx-auto max-w-8xl px-4 py-3 flex items-center justify-between">
+          <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
             <div className="font-semibold">Personal Dashboard</div>
             <div className="flex items-center gap-4">
               <div className="text-sm text-muted-foreground opacity-80 hidden sm:block">
@@ -613,7 +613,7 @@ export default function Index() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8">
+      <main className="mx-auto max-w-8xl px-4 py-8">
         <h1 className="sr-only">Personal Dashboard</h1>
 
         <Tabs defaultValue="habits" className="w-full">
@@ -682,7 +682,7 @@ export default function Index() {
           </TabsContent>
 
           <TabsContent value="tasks" className="space-y-4">
-            {userId && <TaskTracker userId={userId} />}
+              {userId && <TaskTracker userId={userId} />}
           </TabsContent>
         </Tabs>
 
