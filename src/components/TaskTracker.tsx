@@ -260,24 +260,24 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       </Card>
 
       {/* Weekly Calendar View */}
-      <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
         {weekDays.map((day) => {
           const dayTasks = getTasksForDate(day);
           const isToday = isSameDay(day, today);
           
           return (
-            <Card key={day.toISOString()} className={`min-h-[300px] ${isToday ? 'ring-2 ring-primary' : ''}`}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-center">
-                  <div className="flex flex-col items-center">
-                    <span className="text-xs text-muted-foreground">{format(day, "EEE")}</span>
-                    <span className={`text-lg ${isToday ? 'text-primary font-bold' : ''}`}>
+            <Card key={day.toISOString()} className={`min-h-[500px] ${isToday ? 'ring-2 ring-primary shadow-lg' : ''}`}>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base font-semibold text-center">
+                  <div className="flex flex-col items-center space-y-1">
+                    <span className="text-sm text-muted-foreground uppercase tracking-wide">{format(day, "EEE")}</span>
+                    <span className={`text-2xl font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>
                       {format(day, "d")}
                     </span>
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-3 px-4">
                 {dayTasks.map((task) => {
                   const timer = timers.get(task.id);
                   const isRunning = timer?.isRunning || false;
@@ -285,44 +285,44 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                   return (
                     <div
                       key={task.id}
-                      className={`p-3 rounded-lg border bg-card text-card-foreground transition-colors hover:bg-accent/50 ${
-                        task.completed ? 'opacity-60' : ''
-                      }`}
+                      className={`p-4 rounded-xl border bg-card text-card-foreground transition-all hover:shadow-md hover:scale-[1.02] ${
+                        task.completed ? 'opacity-70 bg-muted/50' : 'hover:bg-accent/30'
+                      } ${isRunning ? 'ring-2 ring-green-500/50 bg-green-50/50 dark:bg-green-950/20' : ''}`}
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData("taskId", task.id);
                       }}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h4 className={`font-medium text-sm ${task.completed ? 'line-through' : ''}`}>
+                          <h4 className={`font-semibold text-base leading-tight ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                             {task.title}
                           </h4>
                           {task.timeSpent > 0 && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                              <Clock size={12} />
-                              {formatTime(task.timeSpent)}
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 bg-accent/30 rounded-md px-2 py-1 w-fit">
+                              <Clock size={14} />
+                              <span className="font-medium">{formatTime(task.timeSpent)}</span>
                             </div>
                           )}
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                              <MoreVertical size={12} />
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                              <MoreVertical size={16} />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)}>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-sm">
                               {task.completed ? "Mark Incomplete" : "Mark Complete"}
                             </DropdownMenuItem>
                             {isRunning ? (
-                              <DropdownMenuItem onClick={() => stopTimer(task.id)}>
-                                <Pause size={12} className="mr-2" />
+                              <DropdownMenuItem onClick={() => stopTimer(task.id)} className="text-sm">
+                                <Pause size={14} className="mr-2" />
                                 Stop Timer
                               </DropdownMenuItem>
                             ) : (
-                              <DropdownMenuItem onClick={() => startTimer(task.id)}>
-                                <Play size={12} className="mr-2" />
+                              <DropdownMenuItem onClick={() => startTimer(task.id)} className="text-sm">
+                                <Play size={14} className="mr-2" />
                                 Start Timer
                               </DropdownMenuItem>
                             )}
@@ -330,13 +330,14 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                               <DropdownMenuItem 
                                 key={moveDay.toISOString()}
                                 onClick={() => moveTask(task.id, format(moveDay, "yyyy-MM-dd"))}
+                                className="text-sm"
                               >
                                 Move to {format(moveDay, "EEE d")}
                               </DropdownMenuItem>
                             ))}
                             <DropdownMenuItem 
                               onClick={() => deleteTask(task.id)}
-                              className="text-destructive"
+                              className="text-destructive text-sm"
                             >
                               Delete
                             </DropdownMenuItem>
@@ -344,28 +345,34 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                         </DropdownMenu>
                       </div>
                       
-                      {/* Timer Display */}
-                      {isRunning && (
-                        <Badge variant="secondary" className="mt-2 text-xs">
-                          <Clock size={10} className="mr-1" />
-                          Running...
+                      <div className="flex items-center gap-2 mt-3">
+                        {/* Timer Display */}
+                        {isRunning && (
+                          <Badge variant="default" className="text-xs font-medium bg-green-500 hover:bg-green-600">
+                            <Clock size={12} className="mr-1" />
+                            Running
+                          </Badge>
+                        )}
+                        
+                        {/* Task Status */}
+                        <Badge 
+                          variant={task.completed ? "default" : "secondary"} 
+                          className={`text-xs font-medium ${
+                            task.completed 
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                          }`}
+                        >
+                          {task.completed ? "Completed" : "Pending"}
                         </Badge>
-                      )}
-                      
-                      {/* Task Status */}
-                      <Badge 
-                        variant={task.completed ? "default" : "secondary"} 
-                        className="mt-2 text-xs"
-                      >
-                        {task.completed ? "Completed" : "Pending"}
-                      </Badge>
+                      </div>
                     </div>
                   );
                 })}
                 
                 {/* Drop Zone */}
                 <div
-                  className="p-2 border-2 border-dashed border-muted-foreground/20 rounded-lg text-center text-xs text-muted-foreground hover:border-muted-foreground/40 transition-colors"
+                  className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-sm text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
@@ -375,6 +382,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                     }
                   }}
                 >
+                  <Plus size={16} className="mx-auto mb-1 opacity-50" />
                   Drop tasks here
                 </div>
               </CardContent>
