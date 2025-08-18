@@ -215,7 +215,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
             <Button variant="secondary" onClick={() => setWeekOffset(v => v - 1)} aria-label="Previous week">
               <ChevronLeft size={16} />
             </Button>
-            <div className="text-sm text-muted-foreground min-w-[160px] text-center">
+            <div className="text-xs text-muted-foreground min-w-[160px] text-center">
               {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
             </div>
             <Button variant="secondary" onClick={() => setWeekOffset(v => v + 1)} aria-label="Next week">
@@ -234,7 +234,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-medium">Task Title</label>
+                    <label className="text-xs font-medium">Task Title</label>
                     <Input
                       value={newTaskTitle}
                       onChange={(e) => setNewTaskTitle(e.target.value)}
@@ -242,7 +242,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Date</label>
+                    <label className="text-xs font-medium">Date</label>
                     <Input
                       type="date"
                       value={selectedDate}
@@ -268,10 +268,10 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
           return (
             <Card key={day.toISOString()} className={`min-h-[500px] ${isToday ? 'ring-2 ring-primary shadow-lg' : ''}`}>
               <CardHeader className="pb-4">
-                <CardTitle className="text-base font-semibold text-center">
+                <CardTitle className="text-xs font-semibold text-center">
                   <div className="flex flex-col items-center space-y-1">
-                    <span className="text-sm text-muted-foreground uppercase tracking-wide">{format(day, "EEE")}</span>
-                    <span className={`text-2xl font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">{format(day, "EEE")}</span>
+                    <span className={`text-sm font-bold ${isToday ? 'text-primary' : 'text-foreground'}`}>
                       {format(day, "d")}
                     </span>
                   </div>
@@ -295,16 +295,45 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <h4 className={`font-semibold text-base leading-tight ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          <h6 className={`font-semibold text-xs leading-tight ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                             {task.title}
-                          </h4>
-                          {task.timeSpent > 0 && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2 bg-accent/30 rounded-md px-2 py-1 w-fit">
+                          </h6>
+                          
+                        </div>
+</div>
+                      
+                        <div className="mt-3 flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          {/* Timer Display */}
+                          {isRunning && (
+                            <Badge variant="default" className="text-xs font-medium bg-green-500 hover:bg-green-600">
+                              <Clock size={12} className="mr-1" />
+                              Running
+                            </Badge>
+                          )}
+                          
+                          {/* Task Status */}
+                          <Badge 
+                            variant={task.completed ? "default" : "secondary"} 
+                            className={`text-xs font-medium ${
+                              task.completed 
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
+                                : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                            }`}
+                          >
+                            {task.completed ? "Completed" : "Pending"}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+
+                        {task.timeSpent > 0 && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2 bg-accent/30 rounded-md px-2 py-1 w-fit">
                               <Clock size={14} />
                               <span className="font-medium">{formatTime(task.timeSpent)}</span>
                             </div>
                           )}
-                        </div>
+                                                </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
@@ -312,16 +341,16 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-sm">
+                            <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-xs">
                               {task.completed ? "Mark Incomplete" : "Mark Complete"}
                             </DropdownMenuItem>
                             {isRunning ? (
-                              <DropdownMenuItem onClick={() => stopTimer(task.id)} className="text-sm">
+                              <DropdownMenuItem onClick={() => stopTimer(task.id)} className="text-xs">
                                 <Pause size={14} className="mr-2" />
                                 Stop Timer
                               </DropdownMenuItem>
                             ) : (
-                              <DropdownMenuItem onClick={() => startTimer(task.id)} className="text-sm">
+                              <DropdownMenuItem onClick={() => startTimer(task.id)} className="text-xs">
                                 <Play size={14} className="mr-2" />
                                 Start Timer
                               </DropdownMenuItem>
@@ -330,14 +359,14 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                               <DropdownMenuItem 
                                 key={moveDay.toISOString()}
                                 onClick={() => moveTask(task.id, format(moveDay, "yyyy-MM-dd"))}
-                                className="text-sm"
+                                className="text-xs"
                               >
                                 Move to {format(moveDay, "EEE d")}
                               </DropdownMenuItem>
                             ))}
                             <DropdownMenuItem 
                               onClick={() => deleteTask(task.id)}
-                              className="text-destructive text-sm"
+                              className="text-destructive text-xs"
                             >
                               Delete
                             </DropdownMenuItem>
@@ -345,34 +374,14 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                         </DropdownMenu>
                       </div>
                       
-                      <div className="flex items-center gap-2 mt-3">
-                        {/* Timer Display */}
-                        {isRunning && (
-                          <Badge variant="default" className="text-xs font-medium bg-green-500 hover:bg-green-600">
-                            <Clock size={12} className="mr-1" />
-                            Running
-                          </Badge>
-                        )}
-                        
-                        {/* Task Status */}
-                        <Badge 
-                          variant={task.completed ? "default" : "secondary"} 
-                          className={`text-xs font-medium ${
-                            task.completed 
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" 
-                              : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                          }`}
-                        >
-                          {task.completed ? "Completed" : "Pending"}
-                        </Badge>
-                      </div>
+                      
                     </div>
                   );
                 })}
                 
                 {/* Drop Zone */}
                 <div
-                  className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-sm text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
+                  className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-xs text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
