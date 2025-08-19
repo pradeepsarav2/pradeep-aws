@@ -11,11 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfWeek } from "date-fns";
-import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp, CheckSquare } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp, CheckSquare, Moon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { WeightTracker } from "@/components/WeightTracker";
 import { TaskTracker } from "@/components/TaskTracker";
+import { SleepTracker } from "@/components/SleepTracker";
 // Types used on the client
 export type Habit = {
   id: string;
@@ -617,7 +618,7 @@ export default function Index() {
         <h1 className="sr-only">Personal Dashboard</h1>
 
         <Tabs defaultValue="habits" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="habits" className="flex items-center gap-2">
               <Calendar size={16} />
               Habits
@@ -625,6 +626,10 @@ export default function Index() {
             <TabsTrigger value="weight" className="flex items-center gap-2">
               <TrendingUp size={16} />
               Weight
+            </TabsTrigger>
+            <TabsTrigger value="sleep" className="flex items-center gap-2">
+              <Moon size={16} />
+              Sleep
             </TabsTrigger>
             <TabsTrigger value="tasks" className="flex items-center gap-2">
               <CheckSquare size={16} />
@@ -679,6 +684,10 @@ export default function Index() {
 
           <TabsContent value="weight" className="space-y-4">
             {userId && <WeightTracker userId={userId} />}
+          </TabsContent>
+
+          <TabsContent value="sleep" className="space-y-4">
+            {userId && <SleepTracker userId={userId} />}
           </TabsContent>
 
           <TabsContent value="tasks" className="space-y-4">

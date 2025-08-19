@@ -225,6 +225,22 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 px-4">
+                {/* Drop Zone */}
+                <div
+                  className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-xs text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const taskId = e.dataTransfer.getData("taskId");
+                    if (taskId) {
+                      moveTask(taskId, format(day, "yyyy-MM-dd"));
+                    }
+                  }}
+                >
+                  <Plus size={16} className="mx-auto mb-1 opacity-50" />
+                  Drop tasks here
+                </div>
+                
                 {dayTasks.map((task) => {
                   return (
                     <div
@@ -288,21 +304,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                   );
                 })}
 
-                {/* Drop Zone */}
-                <div
-                  className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-xs text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const taskId = e.dataTransfer.getData("taskId");
-                    if (taskId) {
-                      moveTask(taskId, format(day, "yyyy-MM-dd"));
-                    }
-                  }}
-                >
-                  <Plus size={16} className="mx-auto mb-1 opacity-50" />
-                  Drop tasks here
-                </div>
+                
               </CardContent>
             </Card>
           );
