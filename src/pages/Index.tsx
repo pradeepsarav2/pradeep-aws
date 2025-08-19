@@ -623,6 +623,10 @@ export default function Index() {
               <Calendar size={16} />
               Habits
             </TabsTrigger>
+            <TabsTrigger value="tasks" className="flex items-center gap-2">
+              <CheckSquare size={16} />
+              Tasks
+            </TabsTrigger>
             <TabsTrigger value="weight" className="flex items-center gap-2">
               <TrendingUp size={16} />
               Weight
@@ -630,10 +634,6 @@ export default function Index() {
             <TabsTrigger value="sleep" className="flex items-center gap-2">
               <Moon size={16} />
               Sleep
-            </TabsTrigger>
-            <TabsTrigger value="tasks" className="flex items-center gap-2">
-              <CheckSquare size={16} />
-              Tasks
             </TabsTrigger>
           </TabsList>
 
