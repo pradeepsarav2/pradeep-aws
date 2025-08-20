@@ -118,6 +118,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sleep_logs: {
+        Row: {
+          created_at: string
+          date: string
+          duration_minutes: number
+          end_time: string | null
+          id: string
+          start_time: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          duration_minutes?: number
+          end_time?: string | null
+          id?: string
+          start_time?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          duration_minutes?: number
+          end_time?: string | null
+          id?: string
+          start_time?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           completed: boolean
@@ -181,6 +214,54 @@ export type Database = {
           updated_at?: string
           user_id?: string
           weight?: number
+        }
+        Relationships: []
+      }
+      workouts: {
+        Row: {
+          completed: boolean
+          created_at: string
+          date: string
+          duration_minutes: number | null
+          exercise_type: string
+          id: string
+          notes: string | null
+          reps: number | null
+          sets: number | null
+          title: string
+          updated_at: string
+          user_id: string
+          weight: number | null
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          duration_minutes?: number | null
+          exercise_type: string
+          id?: string
+          notes?: string | null
+          reps?: number | null
+          sets?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+          weight?: number | null
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          date?: string
+          duration_minutes?: number | null
+          exercise_type?: string
+          id?: string
+          notes?: string | null
+          reps?: number | null
+          sets?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          weight?: number | null
         }
         Relationships: []
       }

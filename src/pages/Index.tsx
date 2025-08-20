@@ -11,12 +11,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfWeek } from "date-fns";
-import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp, CheckSquare, Moon } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp, CheckSquare, Moon, Dumbbell } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { WeightTracker } from "@/components/WeightTracker";
 import { TaskTracker } from "@/components/TaskTracker";
 import { SleepTracker } from "@/components/SleepTracker";
+import WorkoutTracker from "@/components/WorkoutTracker";
 // Types used on the client
 export type Habit = {
   id: string;
@@ -346,6 +347,7 @@ export default function Index() {
     if (pathname.startsWith("/tasks")) return "tasks" as const;
     if (pathname.startsWith("/weight")) return "weight" as const;
     if (pathname.startsWith("/sleep")) return "sleep" as const;
+    if (pathname.startsWith("/workout")) return "workout" as const;
     return "habits" as const;
   }, [pathname]);
   const [loading, setLoading] = useState(true);
@@ -625,7 +627,7 @@ export default function Index() {
         <h1 className="sr-only">Personal Dashboard</h1>
 
         <Tabs value={currentTab} onValueChange={(v) => navigate(`/${v}`)} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="habits" className="flex items-center gap-2">
               <Calendar size={16} />
               Habits
@@ -641,6 +643,10 @@ export default function Index() {
             <TabsTrigger value="sleep" className="flex items-center gap-2">
               <Moon size={16} />
               Sleep
+            </TabsTrigger>
+            <TabsTrigger value="workout" className="flex items-center gap-2">
+              <Dumbbell size={16} />
+              Workout
             </TabsTrigger>
           </TabsList>
 
@@ -699,6 +705,10 @@ export default function Index() {
 
           <TabsContent value="tasks" className="space-y-4">
               {userId && <TaskTracker userId={userId} />}
+          </TabsContent>
+
+          <TabsContent value="workout" className="space-y-4">
+              {userId && <WorkoutTracker />}
           </TabsContent>
         </Tabs>
 

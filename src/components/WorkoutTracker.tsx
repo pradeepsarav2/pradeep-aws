@@ -90,16 +90,16 @@ export default function WorkoutTracker() {
   const fetchWorkouts = async () => {
     try {
       const { data, error } = await supabase
-        .from("workouts")
+        .from("workouts" as any)
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any;
 
       if (error) {
         console.error("Error fetching workouts:", error);
         return;
       }
 
-      setWorkouts(data || []);
+      setWorkouts((data as Workout[]) || []);
     } catch (error) {
       console.error("Error fetching workouts:", error);
     } finally {
@@ -137,7 +137,7 @@ export default function WorkoutTracker() {
       };
 
       const { error } = await supabase
-        .from("workouts")
+        .from("workouts" as any)
         .insert([workoutData]);
 
       if (error) {
@@ -181,7 +181,7 @@ export default function WorkoutTracker() {
   const toggleWorkoutComplete = async (workoutId: string, completed: boolean) => {
     try {
       const { error } = await supabase
-        .from("workouts")
+        .from("workouts" as any)
         .update({ completed: !completed })
         .eq("id", workoutId);
 
@@ -220,7 +220,7 @@ export default function WorkoutTracker() {
   const moveWorkout = async (workoutId: string, newDate: string) => {
     try {
       const { error } = await supabase
-        .from("workouts")
+        .from("workouts" as any)
         .update({ date: newDate })
         .eq("id", workoutId);
 
