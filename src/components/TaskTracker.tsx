@@ -27,17 +27,50 @@ type TaskTrackerProps = {
 export function TaskTracker({ userId }: TaskTrackerProps) {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [viewMode, setViewMode] = useState<"week" | "workdays" | "adjacent">("week");
+  const [offset, setOffset] = useState(0);
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const today = new Date();
+  const referenceDate = useMemo(() => {
+    const stepPerOffset = viewMode === "adjacent" ? 1 : 7;
+    return addDays(today, offset * stepPerOffset);
+  }, [today, offset, viewMode]);
+
   const weekStart = useMemo(
-    () => startOfWeek(addDays(today, weekOffset * 7), { weekStartsOn: 1 }),
-    [today, weekOffset]
+    () => startOfWeek(referenceDate, { weekStartsOn: 1 }),
+    [referenceDate]
   );
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+
+  const visibleDays = useMemo(() => {
+    if (viewMode === "adjacent") {
+      return [addDays(referenceDate, -1), referenceDate, addDays(referenceDate, 1)];
+    }
+    if (viewMode === "workdays") {
+      return weekDays.slice(0, 5);
+    }
+    return weekDays;
+  }, [viewMode, referenceDate, weekDays]);
+
+  const gridColsClass = useMemo(() => {
+    switch (visibleDays.length) {
+      case 3:
+        return "lg:grid-cols-3";
+      case 5:
+        return "lg:grid-cols-5";
+      default:
+        return "lg:grid-cols-7";
+    }
+  }, [visibleDays.length]);
+
+  const viewLabel: Record<typeof viewMode, string> = {
+    week: "Full Week",
+    workdays: "Workdays (Mon–Fri)",
+    adjacent: "Adjacent (Y/T/Tmrw)",
+  } as const;
 
   useEffect(() => {
     if (userId) {
@@ -154,7 +187,6 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, date: newDate } : t)));
   };
 
-  // Incomplete tasks first, completed at the bottom
   const getTasksForDate = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     return tasks
@@ -162,24 +194,45 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
       .sort((a, b) => Number(a.completed) - Number(b.completed));
   };
 
+  const displayStart = visibleDays[0];
+  const displayEnd = visibleDays[visibleDays.length - 1];
+
   return (
     <div className="space-y-4">
-      {/* Week Navigation */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Tasks Calendar</CardTitle>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setWeekOffset((v) => v - 1)} aria-label="Previous week">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" className="gap-2 min-w-[160px]" aria-label="Change view">
+                  {viewLabel[viewMode]}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem onClick={() => setViewMode("week")} className="text-xs">
+                  Full Week
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setViewMode("workdays")} className="text-xs">
+                  Workdays (Mon–Fri)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setViewMode("adjacent")} className="text-xs">
+                  Adjacent (Yesterday/Today/Tomorrow)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button variant="secondary" onClick={() => setOffset((v) => v - 1)} aria-label="Previous period">
               <ChevronLeft size={16} />
             </Button>
-            <div className="text-xs text-muted-foreground min-w-[160px] text-center">
-              {format(weekStart, "MMM d")} – {format(addDays(weekStart, 6), "MMM d, yyyy")}
+            <div className="text-xs text-muted-foreground min-w-[200px] text-center">
+              {format(displayStart, "MMM d")} – {format(displayEnd, "MMM d, yyyy")}
             </div>
-            <Button variant="secondary" onClick={() => setWeekOffset((v) => v + 1)} aria-label="Next week">
+            <Button variant="secondary" onClick={() => setOffset((v) => v + 1)} aria-label="Next period">
               <ChevronRight size={16} />
             </Button>
             <div className="w-px h-6 bg-border" />
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (open) setSelectedDate(format(new Date(), "yyyy-MM-dd")); }}>
               <DialogTrigger asChild>
                 <Button variant="default" className="gap-2">
                   <Plus size={18} /> Add Task
@@ -208,9 +261,8 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
         </CardHeader>
       </Card>
 
-      {/* Weekly Calendar View */}
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
-        {weekDays.map((day) => {
+      <div className={`grid grid-cols-1 ${gridColsClass} gap-6`}>
+        {visibleDays.map((day) => {
           const dayTasks = getTasksForDate(day);
           const isToday = isSameDay(day, today);
 
@@ -225,7 +277,6 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 px-4">
-                {/* Drop Zone */}
                 <div
                   className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-xs text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
                   onDragOver={(e) => e.preventDefault()}
@@ -285,7 +336,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                             <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-xs">
                               {task.completed ? "Mark Incomplete" : "Mark Complete"}
                             </DropdownMenuItem>
-                            {weekDays.map((moveDay) => (
+                            {visibleDays.map((moveDay) => (
                               <DropdownMenuItem
                                 key={moveDay.toISOString()}
                                 onClick={() => moveTask(task.id, format(moveDay, "yyyy-MM-dd"))}
