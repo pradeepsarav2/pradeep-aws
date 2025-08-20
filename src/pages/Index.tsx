@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -341,6 +341,13 @@ function HabitTable({
 export default function Index() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const currentTab = useMemo(() => {
+    if (pathname.startsWith("/tasks")) return "tasks" as const;
+    if (pathname.startsWith("/weight")) return "weight" as const;
+    if (pathname.startsWith("/sleep")) return "sleep" as const;
+    return "habits" as const;
+  }, [pathname]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -617,7 +624,7 @@ export default function Index() {
       <main className="mx-auto max-w-8xl px-4 py-8">
         <h1 className="sr-only">Personal Dashboard</h1>
 
-        <Tabs defaultValue="habits" className="w-full">
+        <Tabs value={currentTab} onValueChange={(v) => navigate(`/${v}`)} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="habits" className="flex items-center gap-2">
               <Calendar size={16} />

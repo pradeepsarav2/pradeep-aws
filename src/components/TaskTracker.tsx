@@ -27,11 +27,29 @@ type TaskTrackerProps = {
 export function TaskTracker({ userId }: TaskTrackerProps) {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [viewMode, setViewMode] = useState<"week" | "workdays" | "adjacent">("week");
+  const [viewMode, setViewMode] = useState<"week" | "workdays" | "adjacent">(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("taskTracker:viewMode");
+      if (stored === "week" || stored === "workdays" || stored === "adjacent") {
+        return stored;
+      }
+    }
+    return "week";
+  });
   const [offset, setOffset] = useState(0);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("taskTracker:viewMode", viewMode);
+      }
+    } catch (_) {
+      // ignore storage errors
+    }
+  }, [viewMode]);
 
   const today = new Date();
   const referenceDate = useMemo(() => {
