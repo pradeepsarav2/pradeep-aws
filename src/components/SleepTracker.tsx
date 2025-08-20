@@ -171,12 +171,14 @@ export function SleepTracker({ userId, targetSleepHours = 8 }: SleepTrackerProps
 
   const thisWeekDebt = useMemo(() => {
     return weekDays.reduce((acc, d) => {
+      // Only count days strictly before today (ignore today and future)
+      if (isSameDay(d, today) || d > today) return acc;
       const key = format(d, "yyyy-MM-dd");
       const slept = hoursByDate.get(key) || 0;
       const debt = Math.max(0, target - slept);
       return acc + debt;
     }, 0);
-  }, [weekDays, hoursByDate, target]);
+  }, [weekDays, hoursByDate, target, today]);
 
   const lastNight = useMemo(() => {
     const key = format(subDays(today, 1), "yyyy-MM-dd");
@@ -248,12 +250,16 @@ export function SleepTracker({ userId, targetSleepHours = 8 }: SleepTrackerProps
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs text-muted-foreground">This Week Avg</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">This Week Avg (up to yesterday)</CardTitle>
           </CardHeader>
           <CardContent>
             {(() => {
-              const total = weekData.reduce((a, d) => a + d.value, 0);
-              const avg = +(total / 7).toFixed(2);
+              const daysSoFar = weekDays.filter((d) => !isSameDay(d, today) && d < today);
+              const total = daysSoFar.reduce((sum, d) => {
+                const key = format(d, "yyyy-MM-dd");
+                return sum + (hoursByDate.get(key) || 0);
+              }, 0);
+              const avg = daysSoFar.length > 0 ? +(total / daysSoFar.length).toFixed(2) : 0;
               return <div className="text-2xl font-bold">{avg}h</div>;
             })()}
             <div className="text-xs text-muted-foreground">Target {target}h</div>
@@ -261,7 +267,7 @@ export function SleepTracker({ userId, targetSleepHours = 8 }: SleepTrackerProps
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xs text-muted-foreground">Sleep Debt (This Week)</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">Sleep Debt (This Week, up to yesterday)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
