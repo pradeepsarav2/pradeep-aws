@@ -250,9 +250,17 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
               <ChevronRight size={16} />
             </Button>
             <div className="w-px h-6 bg-border" />
-            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); if (open) setSelectedDate(format(new Date(), "yyyy-MM-dd")); }}>
+            {/* Only control the open state here; don't override selectedDate so other open sources can preset it */}
+            <Dialog open={isDialogOpen} onOpenChange={(open) => { setIsDialogOpen(open); }}>
               <DialogTrigger asChild>
-                <Button variant="default" className="gap-2">
+                <Button
+                  variant="default"
+                  className="gap-2"
+                  onClick={() => {
+                    // When clicking the Add Task button, default to today's date
+                    setSelectedDate(format(new Date(), "yyyy-MM-dd"));
+                  }}
+                >
                   <Plus size={18} /> Add Task
                 </Button>
               </DialogTrigger>
@@ -304,6 +312,11 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                     if (taskId) {
                       moveTask(taskId, format(day, "yyyy-MM-dd"));
                     }
+                  }}
+                  onClick={() => {
+                    // Open the Add Task modal with this specific day pre-populated
+                    setSelectedDate(format(day, "yyyy-MM-dd"));
+                    setIsDialogOpen(true);
                   }}
                 >
                   <Plus size={16} className="mx-auto mb-1 opacity-50" />
