@@ -297,6 +297,8 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
         {visibleDays.map((day) => {
           const dayTasks = getTasksForDate(day);
           const isToday = isSameDay(day, today);
+          const totalTasks = dayTasks.length;
+          const completedTasks = dayTasks.filter((t) => t.completed).length;
 
           return (
             <Card key={day.toISOString()} className={`min-h-[500px] ${isToday ? "ring-2 ring-primary shadow-lg" : ""}`}>
@@ -304,7 +306,10 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 <CardTitle className="text-xs font-semibold text-center">
                   <div className="flex flex-col items-center space-y-1">
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">{format(day, "EEE")}</span>
-                    <span className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>{format(day, "d")}</span>
+                    <span className={`${isToday ? "text-primary" : "text-foreground"} text-sm font-bold`}>{format(day, "d")}</span>
+                    <span className="text-[10px] text-muted-foreground mt-1">
+                      {totalTasks} {totalTasks === 1 ? "task" : "tasks"} • {completedTasks} done
+                    </span>
                   </div>
                 </CardTitle>
               </CardHeader>
