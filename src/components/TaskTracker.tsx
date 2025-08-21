@@ -268,7 +268,13 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 <DialogHeader>
                   <DialogTitle>Add New Task</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    addTask();
+                  }}
+                  className="space-y-4"
+                >
                   <div>
                     <label className="text-xs font-medium">Task Title</label>
                     <Input value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} placeholder="Enter task title..." />
@@ -277,10 +283,10 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                     <label className="text-xs font-medium">Date</label>
                     <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
                   </div>
-                  <Button onClick={addTask} className="w-full">
+                  <Button type="submit" className="w-full">
                     Add Task
                   </Button>
-                </div>
+                </form>
               </DialogContent>
             </Dialog>
           </div>
