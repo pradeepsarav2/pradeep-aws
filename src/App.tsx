@@ -26,6 +26,7 @@ const App = () => (
           <Route path="/weight" element={<Index />} />
           <Route path="/sleep" element={<Index />} />
           <Route path="/workout" element={<Index />} />
+          <Route path="/journal" element={<Index />} />
 
           <Route path="/auth" element={<Auth />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -11,13 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { addDays, format, startOfWeek } from "date-fns";
-import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp, CheckSquare, Moon, Dumbbell } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, CheckCircle2, LogOut, Pencil, Trash2, Calendar, TrendingUp, CheckSquare, Moon, Dumbbell, FileText } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { WeightTracker } from "@/components/WeightTracker";
 import { TaskTracker } from "@/components/TaskTracker";
 import { SleepTracker } from "@/components/SleepTracker";
 import WorkoutTracker from "@/components/WorkoutTracker";
+import { JournalTracker } from "@/components/JournalTracker";
 // Types used on the client
 export type Habit = {
   id: string;
@@ -169,7 +170,7 @@ function HabitTable({
   habits: Habit[];
   entries: HabitEntry[];
   weekStart: Date;
-  onToggle: (habitId: string, dateISO: string) => Promise<void>;
+  onToggle: (habitId: string, dateISO: string, evt?: React.MouseEvent) => Promise<void>;
   onRemoveEntry: (habitId: string, dateISO: string) => Promise<void>;
   onUpdateHabit: (id: string, updates: { name: string; goal?: number; notifyTime?: string; active: boolean }) => Promise<void>;
   onDeleteHabit: (id: string) => Promise<void>;
@@ -281,7 +282,7 @@ function HabitTable({
                         <ContextMenuTrigger asChild>
                           <button
                             aria-label={`Toggle ${h.name} on ${format(d, "PPP")}`}
-                            onClick={() => onToggle(h.id, iso)}
+                            onClick={(e) => onToggle(h.id, iso, e)}
                             className={`inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                               done ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-secondary"
                             }`}
@@ -348,6 +349,7 @@ export default function Index() {
     if (pathname.startsWith("/weight")) return "weight" as const;
     if (pathname.startsWith("/sleep")) return "sleep" as const;
     if (pathname.startsWith("/workout")) return "workout" as const;
+    if (pathname.startsWith("/journal")) return "journal" as const;
     return "habits" as const;
   }, [pathname]);
   const [loading, setLoading] = useState(true);
@@ -462,9 +464,31 @@ export default function Index() {
     }
   };
 
-  const toggleEntry = async (habitId: string, dateISO: string) => {
+  const toggleEntry = async (habitId: string, dateISO: string, evt?: React.MouseEvent) => {
     if (!userId) return;
+    // Capture origin coordinates immediately (SyntheticEvent gets pooled after awaits)
+    let origin: { x: number; y: number } | undefined;
+    if (evt) {
+      const rect = (evt.currentTarget as HTMLElement).getBoundingClientRect();
+      origin = {
+        x: (rect.left + rect.width / 2) / window.innerWidth,
+        y: (rect.top + rect.height / 2) / window.innerHeight,
+      };
+    }
+    const launchConfetti = async () => {
+      const { default: confetti } = await import("canvas-confetti");
+      const x = origin?.x ?? 0.5;
+      const y = origin?.y ?? 0.3;
+      confetti({
+        particleCount: 70,
+        spread: 65,
+        origin: { x, y },
+        scalar: 0.9,
+        disableForReducedMotion: true,
+      });
+    };
     const existing = entries.find((e) => e.habitId === habitId && e.date === dateISO);
+    const wasDone = !!existing && existing.done;
     if (!existing) {
       const { data, error } = await supabase
         .from("habit_entries")
@@ -480,6 +504,7 @@ export default function Index() {
           { id: data.id, habitId: data.habit_id as string, date: dateISO, done: true },
           ...prev,
         ]);
+        await launchConfetti();
       }
     } else {
       const { data, error } = await supabase
@@ -493,7 +518,11 @@ export default function Index() {
         return;
       }
       if (data) {
-        setEntries((prev) => prev.map((e) => (e.id === existing.id ? { ...e, done: data.done as boolean } : e)));
+        const nowDone = data.done as boolean;
+        setEntries((prev) => prev.map((e) => (e.id === existing.id ? { ...e, done: nowDone } : e)));
+        if (!wasDone && nowDone) {
+          await launchConfetti();
+        }
       }
     }
   };
@@ -627,7 +656,7 @@ export default function Index() {
         <h1 className="sr-only">Personal Dashboard</h1>
 
         <Tabs value={currentTab} onValueChange={(v) => navigate(`/${v}`)} className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="habits" className="flex items-center gap-2">
               <Calendar size={16} />
               Habits
@@ -635,6 +664,10 @@ export default function Index() {
             <TabsTrigger value="tasks" className="flex items-center gap-2">
               <CheckSquare size={16} />
               Tasks
+            </TabsTrigger>
+            <TabsTrigger value="journal" className="flex items-center gap-2">
+              <FileText size={16} />
+              Journal
             </TabsTrigger>
             <TabsTrigger value="weight" className="flex items-center gap-2">
               <TrendingUp size={16} />
@@ -709,6 +742,10 @@ export default function Index() {
 
           <TabsContent value="workout" className="space-y-4">
               {userId && <WorkoutTracker />}
+          </TabsContent>
+
+          <TabsContent value="journal" className="space-y-4">
+            {userId && <JournalTracker userId={userId} />}
           </TabsContent>
         </Tabs>
 
