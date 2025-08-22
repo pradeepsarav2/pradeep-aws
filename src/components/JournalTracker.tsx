@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { format, addDays, parseISO } from "date-fns";
-import { ChevronLeft, ChevronRight, MoreVertical, RotateCw, Check } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, MoreVertical, RotateCw, Check, Bold, Italic, List, ListOrdered, Quote, Code } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 // TipTap editor
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -33,22 +35,17 @@ function Toolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   if (!editor) return null as any;
   const isActive = (name: string, attrs?: any) => editor.isActive(name as any, attrs);
   return (
-    <div className="flex flex-wrap gap-1 border-b px-2 py-1">
-      <Button size="sm" variant={isActive("bold") ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleBold().run()}>B</Button>
-      <Button size="sm" variant={isActive("italic") ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleItalic().run()}><em>I</em></Button>
-      <Button size="sm" variant={isActive("strike") ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleStrike().run()}>S</Button>
+    <div className="flex flex-wrap gap-1 border-b bg-muted/40 px-3 py-2 rounded-md">
+      <Button size="sm" variant={isActive("heading", { level: 1 }) ? "default" : "ghost"} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className="h-8 px-2 text-xs">T</Button>
+      <Button size="sm" variant={isActive("bold") ? "default" : "ghost"} onClick={() => editor.chain().focus().toggleBold().run()} className="h-8 w-8 p-0" aria-label="Bold"><Bold size={16} /></Button>
+      <Button size="sm" variant={isActive("italic") ? "default" : "ghost"} onClick={() => editor.chain().focus().toggleItalic().run()} className="h-8 w-8 p-0" aria-label="Italic"><Italic size={16} /></Button>
+      <Button size="sm" variant={isActive("bulletList") ? "default" : "ghost"} onClick={() => editor.chain().focus().toggleBulletList().run()} className="h-8 w-8 p-0" aria-label="Bullet list"><List size={16} /></Button>
+      <Button size="sm" variant={isActive("orderedList") ? "default" : "ghost"} onClick={() => editor.chain().focus().toggleOrderedList().run()} className="h-8 w-8 p-0" aria-label="Ordered list"><ListOrdered size={16} /></Button>
+      <Button size="sm" variant={isActive("blockquote") ? "default" : "ghost"} onClick={() => editor.chain().focus().toggleBlockquote().run()} className="h-8 w-8 p-0" aria-label="Quote"><Quote size={16} /></Button>
+      <Button size="sm" variant={isActive("codeBlock") ? "default" : "ghost"} onClick={() => editor.chain().focus().toggleCodeBlock().run()} className="h-8 w-8 p-0" aria-label="Code"><Code size={16} /></Button>
       <div className="w-px h-6 bg-border mx-1" />
-      <Button size="sm" variant={isActive("heading", { level: 1 }) ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</Button>
-      <Button size="sm" variant={isActive("heading", { level: 2 }) ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</Button>
-      <Button size="sm" variant={isActive("heading", { level: 3 }) ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</Button>
-      <div className="w-px h-6 bg-border mx-1" />
-      <Button size="sm" variant={isActive("bulletList") ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleBulletList().run()}>• List</Button>
-      <Button size="sm" variant={isActive("orderedList") ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1. List</Button>
-      <Button size="sm" variant={isActive("blockquote") ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleBlockquote().run()}>❝</Button>
-      <Button size="sm" variant={isActive("codeBlock") ? "default" : "secondary"} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>Code</Button>
-      <div className="w-px h-6 bg-border mx-1" />
-      <Button size="sm" variant="secondary" onClick={() => editor.chain().focus().undo().run()}>Undo</Button>
-      <Button size="sm" variant="secondary" onClick={() => editor.chain().focus().redo().run()}>Redo</Button>
+      <Button size="sm" variant="ghost" onClick={() => editor.chain().focus().undo().run()} className="h-8 w-8 p-0" aria-label="Undo">↺</Button>
+      <Button size="sm" variant="ghost" onClick={() => editor.chain().focus().redo().run()} className="h-8 w-8 p-0" aria-label="Redo">↻</Button>
     </div>
   );
 }
@@ -60,6 +57,7 @@ export function JournalTracker({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [contentVersion, setContentVersion] = useState(0);
 
   const editor = useEditor({
     extensions: [
@@ -78,7 +76,7 @@ export function JournalTracker({ userId }: { userId: string }) {
         class: "prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[420px]",
       },
     },
-    onUpdate: () => scheduleSave(),
+    onUpdate: () => { scheduleSave(); setContentVersion(v => v + 1); },
   });
 
   const goDay = (delta: number) => {
@@ -195,37 +193,46 @@ export function JournalTracker({ userId }: { userId: string }) {
   const statusText = useMemo(() => {
     if (loading) return "Loading...";
     if (saving) return "Saving...";
-    if (isEmptyDoc()) return entry ? "Saved" : "Start typing to save";
-    return "Saved";
-  }, [loading, saving, entry, editor]);
+    return "All changes saved";
+  }, [loading, saving, entry, contentVersion]);
+
+  const friendlyDate = useMemo(() => {
+    try { return format(parseISO(dateISO), "dd/MM/yyyy"); } catch { return dateISO; }
+  }, [dateISO]);
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">Journal</CardTitle>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => goDay(-1)} aria-label="Previous day">
-              <ChevronLeft size={16} />
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2">
+          <div className="flex w-full items-center gap-3">
+            <CardTitle className="text-base font-semibold mr-auto">Journal</CardTitle>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => goDay(-1)} aria-label="Previous day"><ChevronLeft size={16} /></Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 px-3 font-normal text-xs min-w-[110px] justify-start" aria-label="Pick date">
+                  {friendlyDate}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="p-0 w-auto" align="center">
+                <Calendar
+                  mode="single"
+                  selected={parseISO(dateISO)}
+                  onSelect={(d: Date | undefined) => d && setDateISO(format(d, "yyyy-MM-dd"))}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => goDay(1)} aria-label="Next day"><ChevronRight size={16} /></Button>
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setDateISO(format(new Date(), "yyyy-MM-dd"))}>Today</Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Open calendar" onClick={() => { /* calendar opened by popover trigger - keep for layout */ }}>
+              <CalendarIcon size={16} />
             </Button>
-            <div className="flex items-center gap-2">
-              <Input type="date" value={dateISO} onChange={(e) => setDateISO(e.target.value)} className="w-[160px]" />
-              <Button variant="secondary" onClick={() => setDateISO(format(new Date(), "yyyy-MM-dd"))}>Today</Button>
-            </div>
-            <Button variant="secondary" onClick={() => goDay(1)} aria-label="Next day">
-              <ChevronRight size={16} />
-            </Button>
-            <div className="w-px h-6 bg-border" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="More">
-                  <MoreVertical size={16} />
-                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More"><MoreVertical size={16} /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem className="text-xs" onClick={() => editor?.commands.clearContent()}>
-                  New page
-                </DropdownMenuItem>
+                <DropdownMenuItem className="text-xs" onClick={() => editor?.commands.clearContent()}>New page</DropdownMenuItem>
                 <DropdownMenuItem className="text-xs" onClick={() => void persist()}>
                   <RotateCw className="mr-2 h-3.5 w-3.5" /> Save now
                 </DropdownMenuItem>
@@ -233,21 +240,14 @@ export function JournalTracker({ userId }: { userId: string }) {
             </DropdownMenu>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="space-y-3 pt-0">
           {editor && <Toolbar editor={editor} />}
-          <div className="px-4 pb-4">
-            <div className="rounded-lg border bg-background p-4">
-              {editor ? (
-                <EditorContent editor={editor} />
-              ) : (
-                <div className="text-sm text-muted-foreground">Loading editor...</div>
-              )}
-            </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-              {statusText === "Saved" ? <Check size={14} /> : <RotateCw size={14} className={saving ? "animate-spin" : ""} />}
-              <span>{statusText}</span>
-              {entry?.updatedAt && <span>• Updated {format(new Date(entry.updatedAt), "PPp")}</span>}
-            </div>
+          <div className="border rounded-md p-4 min-h-[400px] bg-background">
+            {editor ? <EditorContent editor={editor} /> : <div className="text-sm text-muted-foreground">Loading editor...</div>}
+          </div>
+          <div className="flex items-center text-xs text-muted-foreground justify-between border-t pt-3 mt-2">
+            <span className="flex items-center gap-1">{statusText === "All changes saved" ? <Check size={14} /> : <RotateCw size={14} className={saving ? "animate-spin" : ""} />}{statusText}</span>
+            {entry?.updatedAt && <span className="flex items-center gap-1"><CalendarIcon size={14} /> Updated {format(new Date(entry.updatedAt), "PP, p")}</span>}
           </div>
         </CardContent>
       </Card>
