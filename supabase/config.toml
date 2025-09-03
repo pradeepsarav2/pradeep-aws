@@ -2,3 +2,6 @@ project_id = "fyieceytlwhkujccfjpk"
 
 [functions.send-reminders]
 verify_jwt = false
+
+[functions.tasks-hourly-reminders]
+verify_jwt = false
