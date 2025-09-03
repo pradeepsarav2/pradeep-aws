@@ -209,7 +209,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
     const dateStr = format(date, "yyyy-MM-dd");
     return tasks
       .filter((task) => task.date === dateStr)
-      .sort((a, b) => Number(a.completed) - Number(b.completed));
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: "base" }));
   };
 
   const displayStart = visibleDays[0];
