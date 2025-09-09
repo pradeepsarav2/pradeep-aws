@@ -446,12 +446,11 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            {/* New: Rename task */}
-                            <DropdownMenuItem onClick={() => startEditTask(task)} className="text-xs">
-                              Rename
-                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-xs">
                               {task.completed ? "Mark Incomplete" : "Mark Complete"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => startEditTask(task)} className="text-xs">
+                              Rename
                             </DropdownMenuItem>
                             {visibleDays.map((moveDay) => (
                               <DropdownMenuItem
