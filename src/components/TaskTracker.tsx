@@ -40,6 +40,10 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  // Added state for editing a task title
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState("");
 
   useEffect(() => {
     try {
@@ -205,6 +209,35 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, date: newDate } : t)));
   };
 
+  // Start editing a task title
+  const startEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditTaskTitle(task.title);
+    setIsEditDialogOpen(true);
+  };
+
+  // Persist edited title
+  const updateTaskTitle = async () => {
+    const newTitle = editTaskTitle.trim();
+    if (!editingTaskId || !newTitle) return;
+
+    const { error } = await (supabase as any)
+      .from("tasks")
+      .update({ title: newTitle })
+      .eq("id", editingTaskId);
+
+    if (error) {
+      toast({ title: "Failed to update task", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    setTasks((prev) => prev.map((t) => (t.id === editingTaskId ? { ...t, title: newTitle } : t)));
+    setIsEditDialogOpen(false);
+    setEditingTaskId(null);
+    setEditTaskTitle("");
+    toast({ title: "Task updated", description: "Task name has been updated." });
+  };
+
   const getTasksForDate = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
     return tasks
@@ -285,6 +318,44 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                   </div>
                   <Button type="submit" className="w-full">
                     Add Task
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit Task Dialog */}
+            <Dialog
+              open={isEditDialogOpen}
+              onOpenChange={(open) => {
+                setIsEditDialogOpen(open);
+                if (!open) {
+                  setEditingTaskId(null);
+                  setEditTaskTitle("");
+                }
+              }}
+            >
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit Task</DialogTitle>
+                </DialogHeader>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    updateTaskTitle();
+                  }}
+                  className="space-y-4"
+                >
+                  <div>
+                    <label className="text-xs font-medium">Task Title</label>
+                    <Input
+                      value={editTaskTitle}
+                      onChange={(e) => setEditTaskTitle(e.target.value)}
+                      placeholder="Enter new title..."
+                      autoFocus
+                    />
+                  </div>
+                  <Button type="submit" className="w-full">
+                    Save
                   </Button>
                 </form>
               </DialogContent>
@@ -375,6 +446,10 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
+                            {/* New: Rename task */}
+                            <DropdownMenuItem onClick={() => startEditTask(task)} className="text-xs">
+                              Rename
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-xs">
                               {task.completed ? "Mark Incomplete" : "Mark Complete"}
                             </DropdownMenuItem>
