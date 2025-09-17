@@ -27,11 +27,11 @@ type TaskTrackerProps = {
 export function TaskTracker({ userId }: TaskTrackerProps) {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [viewMode, setViewMode] = useState<"week" | "workdays" | "adjacent">(() => {
+  const [viewMode, setViewMode] = useState<"week" | "workdays" | "adjacent" | "today">(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("taskTracker:viewMode");
-      if (stored === "week" || stored === "workdays" || stored === "adjacent") {
-        return stored;
+      if (stored === "week" || stored === "workdays" || stored === "adjacent" || stored === "today") {
+        return stored as any;
       }
     }
     return "week";
@@ -57,7 +57,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
 
   const today = new Date();
   const referenceDate = useMemo(() => {
-    const stepPerOffset = viewMode === "adjacent" ? 1 : 7;
+    const stepPerOffset = viewMode === "adjacent" || viewMode === "today" ? 1 : 7;
     return addDays(today, offset * stepPerOffset);
   }, [today, offset, viewMode]);
 
@@ -68,6 +68,9 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
   const visibleDays = useMemo(() => {
+    if (viewMode === "today") {
+      return [referenceDate];
+    }
     if (viewMode === "adjacent") {
       return [addDays(referenceDate, -1), referenceDate, addDays(referenceDate, 1)];
     }
@@ -79,6 +82,8 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
 
   const gridColsClass = useMemo(() => {
     switch (visibleDays.length) {
+      case 1:
+        return "lg:grid-cols-1";
       case 3:
         return "lg:grid-cols-3";
       case 5:
@@ -88,10 +93,11 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
     }
   }, [visibleDays.length]);
 
-  const viewLabel: Record<typeof viewMode, string> = {
+  const viewLabel = {
     week: "Full Week",
     workdays: "Workdays (Mon–Fri)",
     adjacent: "Adjacent (Y/T/Tmrw)",
+    today: "Today Only",
   } as const;
 
   useEffect(() => {
@@ -247,6 +253,9 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
 
   const displayStart = visibleDays[0];
   const displayEnd = visibleDays[visibleDays.length - 1];
+  const dateRangeLabel = visibleDays.length === 1
+    ? format(displayStart, "EEE, MMM d, yyyy")
+    : `${format(displayStart, "MMM d")} – ${format(displayEnd, "MMM d, yyyy")}`;
 
   return (
     <div className="space-y-4">
@@ -270,6 +279,9 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 <DropdownMenuItem onClick={() => setViewMode("adjacent")} className="text-xs">
                   Adjacent (Yesterday/Today/Tomorrow)
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setViewMode("today")} className="text-xs">
+                  Today Only
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -277,7 +289,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
               <ChevronLeft size={16} />
             </Button>
             <div className="text-xs text-muted-foreground min-w-[200px] text-center">
-              {format(displayStart, "MMM d")} – {format(displayEnd, "MMM d, yyyy")}
+              {dateRangeLabel}
             </div>
             <Button variant="secondary" onClick={() => setOffset((v) => v + 1)} aria-label="Next period">
               <ChevronRight size={16} />
@@ -360,7 +372,7 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
+           </div>
         </CardHeader>
       </Card>
 
@@ -368,23 +380,29 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
         {visibleDays.map((day) => {
           const dayTasks = getTasksForDate(day);
           const isToday = isSameDay(day, today);
+          const isTodayView = viewMode === "today";
           const totalTasks = dayTasks.length;
           const completedTasks = dayTasks.filter((t) => t.completed).length;
 
           return (
-            <Card key={day.toISOString()} className={`min-h-[500px] ${isToday ? "ring-2 ring-primary shadow-lg" : ""}`}>
+            <Card
+              key={day.toISOString()}
+              className={`min-h-[500px] ${
+                (isTodayView ? "ring-2 ring-primary shadow-lg " : "") + (isTodayView ? "lg:col-span-full" : "")
+              }`}
+            >
               <CardHeader className="pb-4">
                 <CardTitle className="text-xs font-semibold text-center">
                   <div className="flex flex-col items-center space-y-1">
                     <span className="text-xs text-muted-foreground uppercase tracking-wide">{format(day, "EEE")}</span>
-                    <span className={`${isToday ? "text-primary" : "text-foreground"} text-sm font-bold`}>{format(day, "d")}</span>
+                    <span className={`${isTodayView ? "text-primary" : "text-foreground"} text-sm font-bold`}>{format(day, "d")}</span>
                     <span className="text-[10px] text-muted-foreground mt-1">
                       {totalTasks} {totalTasks === 1 ? "task" : "tasks"} • {completedTasks} done
                     </span>
                   </div>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 px-4">
+              <CardContent className={`px-4 ${isTodayView ? 'space-y-4' : 'space-y-3'}`}>
                 <div
                   className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-xl text-center text-xs text-muted-foreground hover:border-muted-foreground/50 hover:bg-accent/20 transition-all cursor-pointer"
                   onDragOver={(e) => e.preventDefault()}
@@ -405,8 +423,75 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                   Drop tasks here
                 </div>
                 
-                {dayTasks.map((task) => {
-                  return (
+                {viewMode === 'today' ? (
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {dayTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className={`p-4 rounded-xl border bg-card text-card-foreground transition-all hover:shadow-md hover:scale-[1.02] ${
+                          task.completed ? "opacity-70 bg-muted/50" : "hover:bg-accent/30"
+                        }`}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("taskId", task.id);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <h6 className={`font-semibold text-xs leading-tight ${task.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                              {task.title}
+                            </h6>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={task.completed ? "default" : "secondary"}
+                              className={`text-xs font-medium ${
+                                task.completed
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                  : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                              }`}
+                            >
+                              {task.completed ? "Completed" : "Pending"}
+                            </Badge>
+                          </div>
+
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-accent">
+                                <MoreVertical size={16} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem onClick={() => toggleTaskCompletion(task.id)} className="text-xs">
+                                {task.completed ? "Mark Incomplete" : "Mark Complete"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => startEditTask(task)} className="text-xs">
+                                Rename
+                              </DropdownMenuItem>
+                              {visibleDays.map((moveDay) => (
+                                <DropdownMenuItem
+                                  key={moveDay.toISOString()}
+                                  onClick={() => moveTask(task.id, format(moveDay, "yyyy-MM-dd"))}
+                                  className="text-xs"
+                                >
+                                  Move to {format(moveDay, "EEE d")}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuItem onClick={() => deleteTask(task.id)} className="text-destructive text-xs">
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  // All other views: render a normal vertical list (including today)
+                  dayTasks.map((task) => (
                     <div
                       key={task.id}
                       className={`p-4 rounded-xl border bg-card text-card-foreground transition-all hover:shadow-md hover:scale-[1.02] ${
@@ -468,9 +553,8 @@ export function TaskTracker({ userId }: TaskTrackerProps) {
                         </DropdownMenu>
                       </div>
                     </div>
-                  );
-                })}
-
+                  ))
+                )}
                 
               </CardContent>
             </Card>
