@@ -656,7 +656,7 @@ export default function Index() {
         <h1 className="sr-only">Personal Dashboard</h1>
 
         <Tabs value={currentTab} onValueChange={(v) => navigate(`/${v}`)} className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="habits" className="flex items-center gap-2">
               <Calendar size={16} />
               Habits
@@ -665,22 +665,22 @@ export default function Index() {
               <CheckSquare size={16} />
               Tasks
             </TabsTrigger>
-            <TabsTrigger value="journal" className="flex items-center gap-2">
+            {/* <TabsTrigger value="journal" className="flex items-center gap-2">
               <FileText size={16} />
               Journal
-            </TabsTrigger>
+            </TabsTrigger> */}
             <TabsTrigger value="weight" className="flex items-center gap-2">
               <TrendingUp size={16} />
               Weight
             </TabsTrigger>
-            <TabsTrigger value="sleep" className="flex items-center gap-2">
+            {/* <TabsTrigger value="sleep" className="flex items-center gap-2">
               <Moon size={16} />
               Sleep
-            </TabsTrigger>
-            <TabsTrigger value="workout" className="flex items-center gap-2">
+            </TabsTrigger> */}
+            {/* <TabsTrigger value="workout" className="flex items-center gap-2">
               <Dumbbell size={16} />
               Workout
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           <TabsContent value="habits" className="space-y-4">
